@@ -83,10 +83,10 @@ final class MediaItem {
         if seconds <= 0 {
             return "Doldu"
         }
-        let minutes = Int(seconds / 60)
-        if minutes < 1 {
-            return "< 1 dk"
+        if seconds < 60 {
+            return "\(max(1, Int(seconds.rounded()))) sn"
         }
+        let minutes = Int(seconds / 60)
         if minutes < 60 {
             return "\(minutes) dk"
         }

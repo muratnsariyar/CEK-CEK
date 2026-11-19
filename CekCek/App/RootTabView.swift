@@ -18,7 +18,7 @@ struct RootTabView: View {
     @State private var selectedTab: MainTab = .camera
     @State private var didConfigureInitialTab = false
 
-    private let expirationCheckTimer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
+    private let expirationCheckTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {

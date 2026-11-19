@@ -2,6 +2,10 @@ import AVFoundation
 import SwiftData
 import SwiftUI
 
+private struct EditingSlotItem: Identifiable {
+    let id: Int
+}
+
 struct CameraTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MediaFolder.createdAt) private var folders: [MediaFolder]
@@ -13,12 +17,12 @@ struct CameraTabView: View {
     @ObservedObject private var retentionSettings = RetentionSettingsManager.shared
     @ObservedObject private var monetization = MonetizationService.shared
 
-    @State private var selectedRetention: RetentionPreset = .threeDays
     @State private var selectedFolderID: UUID?
     @State private var showFlashOverlay: Bool = false
     @State private var statusBanner: String?
     @State private var baseZoomFactor: CGFloat = 1.0
     @State private var previewItem: MediaItem?
+    @State private var editingSlot: EditingSlotItem?
 
     var onOpenGallery: () -> Void
 
@@ -98,9 +102,6 @@ struct CameraTabView: View {
             }
         }
         .onAppear {
-            if !retentionSettings.activePresets.contains(selectedRetention) {
-                selectedRetention = retentionSettings.defaultPreset
-            }
             if selectedFolderID == nil {
                 selectedFolderID = folders.first?.id
             }
@@ -115,14 +116,18 @@ struct CameraTabView: View {
         .onDisappear {
             camera.stopSession()
         }
-        .onChange(of: retentionSettings.activePresets) { _, newPresets in
-            if !newPresets.contains(selectedRetention) {
-                selectedRetention = retentionSettings.defaultPreset
-            }
-        }
         .sheet(item: $previewItem) { item in
             NavigationStack {
                 MediaDetailView(item: item)
+            }
+        }
+        .sheet(item: $editingSlot) { slot in
+            DurationWheelPickerSheet(
+                title: "\(slot.id + 1). Süre Seçeneği",
+                initialDuration: retentionSettings.slot(at: slot.id)
+            ) { newDuration in
+                retentionSettings.updateSlot(at: slot.id, to: newDuration)
+                retentionSettings.selectSlot(index: slot.id)
             }
         }
         .alert("Kamera Hatası", isPresented: Binding(
@@ -195,11 +200,6 @@ struct CameraTabView: View {
             ForEach(folders) { folder in
                 Button {
                     selectedFolderID = folder.id
-                    if retentionSettings.activePresets.contains(folder.defaultPreset) {
-                        selectedRetention = folder.defaultPreset
-                    } else {
-                        selectedRetention = retentionSettings.defaultPreset
-                    }
                 } label: {
                     Label(folder.name, systemImage: folder.iconName)
                 }
@@ -224,24 +224,37 @@ struct CameraTabView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 14) {
-            // 3 Adet Özelleştirilebilir Saklama Süresi
+            // 3 Adet Saklama Süresi Seçeneği (Son Seçim Otomatik Korunur)
             HStack(spacing: 8) {
-                Image(systemName: "timer")
-                    .font(.caption.bold())
-                    .foregroundStyle(.orange)
-                ForEach(Array(retentionSettings.activePresets.enumerated()), id: \.offset) { _, preset in
+                Button {
+                    openDurationWheel(for: retentionSettings.selectedSlotIndex)
+                } label: {
+                    Image(systemName: "timer")
+                        .font(.caption.bold())
+                        .foregroundStyle(.orange)
+                        .padding(6)
+                        .background(Color.white.opacity(0.12), in: Circle())
+                }
+                .disabled(camera.isRecording)
+
+                ForEach(Array(retentionSettings.activePresets.enumerated()), id: \.offset) { index, duration in
+                    let isSelected = retentionSettings.selectedSlotIndex == index
                     Button {
-                        withAnimation(.snappy) {
-                            selectedRetention = preset
+                        if isSelected {
+                            openDurationWheel(for: index)
+                        } else {
+                            withAnimation(.snappy) {
+                                retentionSettings.selectSlot(index: index)
+                            }
                         }
                     } label: {
-                        Text(preset.title)
+                        Text(duration.shortLabel)
                             .font(.caption.bold())
-                            .foregroundStyle(selectedRetention == preset ? .black : .white)
+                            .foregroundStyle(isSelected ? .black : .white)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
                             .background(
-                                selectedRetention == preset ? Color.orange : Color.white.opacity(0.16),
+                                isSelected ? Color.orange : Color.white.opacity(0.16),
                                 in: Capsule()
                             )
                     }
@@ -405,13 +418,22 @@ struct CameraTabView: View {
         }
     }
 
+    private func openDurationWheel(for index: Int) {
+        if monetization.isPro {
+            editingSlot = EditingSlotItem(id: index)
+        } else {
+            monetization.showProPaywall = true
+        }
+    }
+
     private func handleShutterTap() {
         if camera.isCameraUnavailable {
             triggerFlashFeedback()
             let folderName = activeFolder?.name ?? "Genel"
+            let activeDuration = retentionSettings.lastUsedDuration
             if let demoData = MediaStorageService.shared.generateDemoPhotoData(
                 folderName: folderName,
-                retentionTitle: selectedRetention.title
+                retentionTitle: activeDuration.title
             ) {
                 saveCapturedPhoto(data: demoData)
             }
@@ -441,13 +463,14 @@ struct CameraTabView: View {
     }
 
     private func saveCapturedPhoto(data: Data) {
+        let duration = retentionSettings.lastUsedDuration
         do {
             let saved = try MediaStorageService.shared.savePhoto(data: data)
             let item = MediaItem(
                 fileName: saved.fileName,
                 thumbnailFileName: saved.thumbnailFileName,
                 mediaType: .photo,
-                expiresAt: selectedRetention.expirationDate(),
+                expiresAt: duration.expirationDate(),
                 fileSizeBytes: saved.fileSizeBytes,
                 folder: activeFolder
             )
@@ -455,14 +478,14 @@ struct CameraTabView: View {
             try? modelContext.save()
             NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: notificationLeadHours)
             monetization.recordCapture()
-            showBanner("Kasaya kaydedildi • \(selectedRetention.title)")
+            showBanner("Kasaya kaydedildi • \(duration.title)")
         } catch {
             camera.errorMessage = error.localizedDescription
         }
     }
 
     private func saveCapturedVideo(tempURL: URL) {
-        let retention = selectedRetention
+        let duration = retentionSettings.lastUsedDuration
         let folder = activeFolder
         let leadHours = notificationLeadHours
 
@@ -474,7 +497,7 @@ struct CameraTabView: View {
                         fileName: saved.fileName,
                         thumbnailFileName: saved.thumbnailFileName,
                         mediaType: .video,
-                        expiresAt: retention.expirationDate(),
+                        expiresAt: duration.expirationDate(),
                         durationSeconds: saved.durationSeconds,
                         fileSizeBytes: saved.fileSizeBytes,
                         folder: folder
@@ -483,7 +506,7 @@ struct CameraTabView: View {
                     try? modelContext.save()
                     NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: leadHours)
                     monetization.recordCapture()
-                    showBanner("Video kasaya kaydedildi • \(retention.title)")
+                    showBanner("Video kasaya kaydedildi • \(duration.title)")
                 }
             } catch {
                 await MainActor.run {

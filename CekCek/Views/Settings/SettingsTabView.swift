@@ -1,6 +1,10 @@
 import SwiftData
 import SwiftUI
 
+private struct SettingsEditingSlot: Identifiable {
+    let id: Int
+}
+
 struct SettingsTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allItems: [MediaItem]
@@ -15,6 +19,7 @@ struct SettingsTabView: View {
     @State private var vaultSizeBytes: Int64 = 0
     @State private var showPurgeAllConfirm = false
     @State private var infoMessage: String?
+    @State private var editingSlot: SettingsEditingSlot?
 
     private let leadHourOptions = [3, 6, 12, 24]
 
@@ -60,41 +65,13 @@ struct SettingsTabView: View {
                 }
 
                 Section {
+                    durationSlotRow(index: 0, title: "1. Süre Seçeneği", value: retentionSettings.slot1.title)
+                    durationSlotRow(index: 1, title: "2. Süre Seçeneği", value: retentionSettings.slot2.title)
+                    durationSlotRow(index: 2, title: "3. Süre Seçeneği", value: retentionSettings.slot3.title)
+
                     if monetization.isPro {
-                        Picker("1. Süre Butonu", selection: $retentionSettings.slot1) {
-                            ForEach(RetentionPreset.allCases) { preset in
-                                Text(preset.title).tag(preset)
-                            }
-                        }
-                        Picker("2. Süre Butonu", selection: $retentionSettings.slot2) {
-                            ForEach(RetentionPreset.allCases) { preset in
-                                Text(preset.title).tag(preset)
-                            }
-                        }
-                        Picker("3. Süre Butonu", selection: $retentionSettings.slot3) {
-                            ForEach(RetentionPreset.allCases) { preset in
-                                Text(preset.title).tag(preset)
-                            }
-                        }
-
-                        Picker("Varsayılan Saklama Süresi", selection: $retentionSettings.defaultPreset) {
-                            ForEach(retentionSettings.uniqueActivePresets) { preset in
-                                Text(preset.title).tag(preset)
-                            }
-                        }
-
                         Button("Süreleri Varsayılana Sıfırla") {
                             retentionSettings.resetToDefaults()
-                        }
-                    } else {
-                        proLockedDurationRow(title: "1. Süre Butonu", value: retentionSettings.slot1.title)
-                        proLockedDurationRow(title: "2. Süre Butonu", value: retentionSettings.slot2.title)
-                        proLockedDurationRow(title: "3. Süre Butonu", value: retentionSettings.slot3.title)
-
-                        Picker("Varsayılan Saklama Süresi", selection: $retentionSettings.defaultPreset) {
-                            ForEach(retentionSettings.uniqueActivePresets) { preset in
-                                Text(preset.title).tag(preset)
-                            }
                         }
                     }
 
@@ -104,8 +81,8 @@ struct SettingsTabView: View {
                 } footer: {
                     Text(
                         monetization.isPro
-                            ? "Kamerada görünecek 3 saklama süresi butonunu dilediğiniz gibi ayarlayabilirsiniz."
-                            : "Kamera ekranındaki 3 saklama süresini özelleştirmek CEK CEK Pro paketine dahildir."
+                            ? "Herhangi bir süre seçeneğine dokunarak Gün / Saat / Dakika sayacıyla dilediğiniz süreyi (minimum 1 dakika) belirleyebilirsiniz. En son seçtiğiniz süre otomatik olarak korunur."
+                            : "Kamera ekranında en son seçtiğiniz süre otomatik olarak korunur. 3 süre seçeneğini Gün / Saat / Dakika sayacıyla özelleştirmek CEK CEK Pro paketine dahildir."
                     )
                 }
 
@@ -187,7 +164,7 @@ struct SettingsTabView: View {
                 } header: {
                     Text("Geliştirici Testi")
                 } footer: {
-                    Text("Reklam tetikleme (50 hak) ve Pro süre özelleştirme özelliklerini test etmek içindir.")
+                    Text("Reklam tetikleme (50 hak) ve Pro sayaç özelleştirme özelliklerini test etmek içindir.")
                 }
 
                 Section("Hakkında") {
@@ -208,6 +185,14 @@ struct SettingsTabView: View {
             .navigationTitle("Ayarlar")
             .onAppear {
                 refreshVaultSize()
+            }
+            .sheet(item: $editingSlot) { slot in
+                DurationWheelPickerSheet(
+                    title: "\(slot.id + 1). Süre Seçeneği",
+                    initialDuration: retentionSettings.slot(at: slot.id)
+                ) { newDuration in
+                    retentionSettings.updateSlot(at: slot.id, to: newDuration)
+                }
             }
             .confirmationDialog(
                 "Kasadaki tüm fotoğraf ve videolar kalıcı olarak silinsin mi?",
@@ -231,22 +216,34 @@ struct SettingsTabView: View {
         }
     }
 
-    private func proLockedDurationRow(title: String, value: String) -> some View {
+    private func durationSlotRow(index: Int, title: String, value: String) -> some View {
         Button {
-            monetization.showProPaywall = true
+            if monetization.isPro {
+                editingSlot = SettingsEditingSlot(id: index)
+            } else {
+                monetization.showProPaywall = true
+            }
         } label: {
             HStack {
                 Text(title)
                     .foregroundStyle(.primary)
                 Spacer()
                 Text(value)
-                    .foregroundStyle(.secondary)
-                Text("PRO")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Color.orange, in: Capsule())
+                    .foregroundStyle(monetization.isPro ? .orange : .secondary)
+                    .fontWeight(monetization.isPro ? .semibold : .regular)
+
+                if !monetization.isPro {
+                    Text("PRO")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.orange, in: Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
     }

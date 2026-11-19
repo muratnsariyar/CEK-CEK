@@ -13,8 +13,7 @@ struct MediaDetailView: View {
     @State private var fullImage: UIImage?
     @State private var player: AVPlayer?
     @State private var showShareSheet = false
-    @State private var showCustomDateSheet = false
-    @State private var customExpireDate: Date = Date().addingTimeInterval(86400 * 3)
+    @State private var showCustomDurationSheet = false
     @State private var showDeleteConfirm = false
     @State private var alertMessage: String?
     @State private var isExporting = false
@@ -74,7 +73,6 @@ struct MediaDetailView: View {
         }
         .onAppear {
             loadMedia()
-            customExpireDate = max(Date().addingTimeInterval(3600), item.expiresAt)
         }
         .onDisappear {
             player?.pause()
@@ -83,8 +81,19 @@ struct MediaDetailView: View {
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [MediaStorageService.shared.fileURL(for: item.fileName)])
         }
-        .sheet(isPresented: $showCustomDateSheet) {
-            customDatePickerSheet
+        .sheet(isPresented: $showCustomDurationSheet) {
+            DurationWheelPickerSheet(
+                title: "Sayaçla Süre Uzat",
+                initialDuration: RetentionSettingsManager.shared.lastUsedDuration
+            ) { duration in
+                item.extend(by: duration)
+                try? modelContext.save()
+                NotificationService.shared.scheduleExpirationReminder(
+                    for: item,
+                    hoursBefore: notificationLeadHours
+                )
+                alertMessage = "Saklama süresi \(duration.title) uzatıldı."
+            }
         }
         .confirmationDialog(
             "Bu medya kalıcı olarak silinsin mi?",
@@ -176,9 +185,8 @@ struct MediaDetailView: View {
                     }
                 }
                 Divider()
-                Button("Özel Tarih Seç...") {
-                    customExpireDate = max(Date().addingTimeInterval(3600), item.expiresAt)
-                    showCustomDateSheet = true
+                Button("Sayaçla Süre Uzat...") {
+                    showCustomDurationSheet = true
                 }
             } label: {
                 actionButtonLabel(title: "Uzat", icon: "clock.arrow.circlepath")
@@ -238,39 +246,6 @@ struct MediaDetailView: View {
                 .font(.caption2)
         }
         .frame(minWidth: 50)
-    }
-
-    private var customDatePickerSheet: some View {
-        NavigationStack {
-            Form {
-                DatePicker(
-                    "Otomatik Silinme Tarihi",
-                    selection: $customExpireDate,
-                    in: Date().addingTimeInterval(600)...,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.graphical)
-            }
-            .navigationTitle("Özel Süre")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("İptal") { showCustomDateSheet = false }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Kaydet") {
-                        item.expiresAt = customExpireDate
-                        try? modelContext.save()
-                        NotificationService.shared.scheduleExpirationReminder(
-                            for: item,
-                            hoursBefore: notificationLeadHours
-                        )
-                        showCustomDateSheet = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 
     private func loadMedia() {
