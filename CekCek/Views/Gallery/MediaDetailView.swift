@@ -19,6 +19,17 @@ struct MediaDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var alertMessage: String?
     @State private var isExporting = false
+    @State private var dragOffsetY: CGFloat = 0
+
+    private var backgroundOpacity: Double {
+        let progress = min(1.0, Double(max(0, dragOffsetY)) / 260.0)
+        return max(0.15, 1.0 - progress * 0.85)
+    }
+
+    private var dragScale: CGFloat {
+        let progress = min(1.0, Double(max(0, dragOffsetY)) / 300.0)
+        return CGFloat(1.0 - progress * 0.14)
+    }
 
     init(item: MediaItem, items: [MediaItem]? = nil) {
         self.initialItem = item
@@ -44,45 +55,77 @@ struct MediaDetailView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black
+                .opacity(backgroundOpacity)
+                .ignoresSafeArea()
 
-            if activeItems.count > 1 {
-                TabView(selection: $currentItemID) {
-                    ForEach(activeItems) { media in
-                        MediaPageCanvas(
-                            item: media,
-                            isActive: media.id == currentItemID,
-                            onToggleChrome: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    isChromeHidden.toggle()
+            Group {
+                if activeItems.count > 1 {
+                    TabView(selection: $currentItemID) {
+                        ForEach(activeItems) { media in
+                            MediaPageCanvas(
+                                item: media,
+                                isActive: media.id == currentItemID,
+                                onToggleChrome: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isChromeHidden.toggle()
+                                    }
+                                },
+                                onSwipeUpForInfo: {
+                                    showInfoSheet = true
+                                },
+                                onDragDownChanged: { offset in
+                                    dragOffsetY = offset
+                                },
+                                onDragDownEnded: { shouldDismiss in
+                                    if shouldDismiss {
+                                        try? modelContext.save()
+                                        dismiss()
+                                    } else {
+                                        withAnimation(.spring(duration: 0.25)) {
+                                            dragOffsetY = 0
+                                        }
+                                    }
                                 }
-                            },
-                            onSwipeUpForInfo: {
-                                showInfoSheet = true
-                            }
-                        )
-                        .tag(media.id)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea()
-            } else if let single = activeItems.first {
-                MediaPageCanvas(
-                    item: single,
-                    isActive: true,
-                    onToggleChrome: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isChromeHidden.toggle()
+                            )
+                            .tag(media.id)
                         }
-                    },
-                    onSwipeUpForInfo: {
-                        showInfoSheet = true
                     }
-                )
-                .ignoresSafeArea()
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .ignoresSafeArea()
+                } else if let single = activeItems.first {
+                    MediaPageCanvas(
+                        item: single,
+                        isActive: true,
+                        onToggleChrome: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isChromeHidden.toggle()
+                            }
+                        },
+                        onSwipeUpForInfo: {
+                            showInfoSheet = true
+                        },
+                        onDragDownChanged: { offset in
+                            dragOffsetY = offset
+                        },
+                        onDragDownEnded: { shouldDismiss in
+                            if shouldDismiss {
+                                try? modelContext.save()
+                                dismiss()
+                            } else {
+                                withAnimation(.spring(duration: 0.25)) {
+                                    dragOffsetY = 0
+                                }
+                            }
+                        }
+                    )
+                    .ignoresSafeArea()
+                }
             }
+            .offset(y: dragOffsetY)
+            .scaleEffect(dragScale)
 
-            if !isChromeHidden {
+            if !isChromeHidden && dragOffsetY < 10 {
                 VStack(spacing: 0) {
                     topBar
                     Spacer()
@@ -333,6 +376,8 @@ private struct MediaPageCanvas: View {
     let isActive: Bool
     let onToggleChrome: () -> Void
     let onSwipeUpForInfo: () -> Void
+    let onDragDownChanged: (CGFloat) -> Void
+    let onDragDownEnded: (Bool) -> Void
 
     @State private var fullImage: UIImage?
     @State private var player: AVPlayer?
@@ -341,7 +386,7 @@ private struct MediaPageCanvas: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            Color.clear
 
             if item.mediaType == .video {
                 if let player {
@@ -385,12 +430,28 @@ private struct MediaPageCanvas: View {
         }
         .contentShape(Rectangle())
         .simultaneousGesture(
-            DragGesture(minimumDistance: 35)
+            DragGesture(minimumDistance: 18)
+                .onChanged { value in
+                    guard zoomScale <= 1.05 else { return }
+                    let isDownward = value.translation.height > 0
+                    let isMostlyVertical = abs(value.translation.height) > abs(value.translation.width) * 1.2
+                    if isDownward && isMostlyVertical {
+                        onDragDownChanged(value.translation.height)
+                    }
+                }
                 .onEnded { value in
-                    let isUpward = value.translation.height < -55
-                    let isMostlyVertical = abs(value.translation.height) > abs(value.translation.width) * 1.4
-                    if isUpward && isMostlyVertical {
+                    guard zoomScale <= 1.05 else {
+                        onDragDownEnded(false)
+                        return
+                    }
+                    let isMostlyVertical = abs(value.translation.height) > abs(value.translation.width) * 1.2
+                    if isMostlyVertical && value.translation.height < -55 {
+                        onDragDownEnded(false)
                         onSwipeUpForInfo()
+                    } else if isMostlyVertical && (value.translation.height > 90 || value.predictedEndTranslation.height > 180) {
+                        onDragDownEnded(true)
+                    } else {
+                        onDragDownEnded(false)
                     }
                 }
         )

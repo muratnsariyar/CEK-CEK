@@ -132,6 +132,7 @@ struct GalleryTabView: View {
             }
             .fullScreenCover(item: $selectedItem) { item in
                 MediaDetailView(item: item, items: filteredItems)
+                    .presentationBackground(.clear)
             }
             .sheet(isPresented: $showCreateFolderSheet) {
                 FolderEditorSheet()

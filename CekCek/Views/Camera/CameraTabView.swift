@@ -122,6 +122,7 @@ struct CameraTabView: View {
         }
         .fullScreenCover(item: $previewItem) { item in
             MediaDetailView(item: item)
+                .presentationBackground(.clear)
         }
         .sheet(item: $editingSlot) { slot in
             DurationWheelPickerSheet(
