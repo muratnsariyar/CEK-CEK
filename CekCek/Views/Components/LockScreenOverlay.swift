@@ -16,8 +16,8 @@ struct LockScreenOverlay: View {
                     Text("ÇEK ÇEK Kilitli")
                         .font(.title2.bold())
 
-                    Text("“Çek, işin görülsün; çekpas gibi su misali süpürülsün!”")
-                        .font(.caption.italic())
+                    Text("“Zamanı gelince silinecekler varsa ÇEK ÇEK burada!”")
+                        .font(.caption.bold())
                         .foregroundStyle(.orange)
 
                     Text("Geçici galerinize erişmek için \(lockService.biometricName) doğrulaması yapın.")

@@ -6,46 +6,80 @@ struct BrandSqueegeeBadge: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-                .fill(
+            // Üst yarı (Fotoğraf alanı) ve Alt yarı (Çöp alanı) ikiye bölünmüş kapak
+            VStack(spacing: 0) {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.22, blue: 0.42),
+                        Color(red: 0.14, green: 0.36, blue: 0.62)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.09, green: 0.11, blue: 0.20),
+                        Color(red: 0.04, green: 0.06, blue: 0.12)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            .shadow(color: .orange.opacity(0.28), radius: 10, y: 4)
+
+            // Üst yarı: Fotoğraf görseli + su damlaları
+            Image(systemName: "drop.fill")
+                .font(.system(size: size * 0.11))
+                .foregroundStyle(.cyan.opacity(0.9))
+                .offset(x: -size * 0.28, y: -size * 0.23)
+
+            Image(systemName: "drop.fill")
+                .font(.system(size: size * 0.09))
+                .foregroundStyle(.cyan.opacity(0.85))
+                .offset(x: size * 0.28, y: -size * 0.21)
+
+            Image(systemName: "photo.fill")
+                .font(.system(size: size * 0.27, weight: .bold))
+                .foregroundStyle(.white)
+                .offset(y: -size * 0.23)
+
+            // Alt yarı: Çöp kutusu görseli
+            Image(systemName: "trash.fill")
+                .font(.system(size: size * 0.25, weight: .bold))
+                .foregroundStyle(
                     LinearGradient(
-                        colors: [
-                            Color(red: 0.07, green: 0.13, blue: 0.24),
-                            Color(red: 0.12, green: 0.25, blue: 0.42)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        colors: [.orange, Color(red: 0.92, green: 0.26, blue: 0.18)],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
                 )
-                .frame(width: size, height: size)
-                .shadow(color: .orange.opacity(0.28), radius: 10, y: 4)
+                .offset(y: size * 0.24)
 
-            // Su damlaları & çekpas süpürme efekti
-            Image(systemName: "drop.fill")
-                .font(.system(size: size * 0.18))
-                .foregroundStyle(.cyan.opacity(0.85))
-                .offset(x: -size * 0.22, y: -size * 0.20)
+            // Tam ortadan kapağı ikiye ayıran Çekçek (Squeegee)
+            ZStack {
+                VStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: max(1.5, size * 0.02))
+                        .fill(Color.cyan)
+                        .frame(width: size * 0.86, height: max(2.5, size * 0.04))
 
-            Image(systemName: "sparkles")
-                .font(.system(size: size * 0.18, weight: .bold))
-                .foregroundStyle(.orange)
-                .offset(x: size * 0.24, y: -size * 0.22)
-
-            // Kamera + Çekpas (squeegee) birleşimi
-            VStack(spacing: 2) {
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: size * 0.36, weight: .bold))
-                    .foregroundStyle(.white)
-
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(
-                        LinearGradient(
-                            colors: [.orange, .cyan],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                    RoundedRectangle(cornerRadius: max(2, size * 0.03))
+                        .fill(
+                            LinearGradient(
+                                colors: [.orange, Color(red: 0.95, green: 0.45, blue: 0.0)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .frame(width: size * 0.54, height: max(4, size * 0.06))
+                        .frame(width: size * 0.90, height: max(3.5, size * 0.055))
+                }
+
+                RoundedRectangle(cornerRadius: max(2, size * 0.025))
+                    .fill(Color.white.opacity(0.95))
+                    .frame(width: size * 0.16, height: max(4, size * 0.065))
+                    .offset(y: size * 0.015)
             }
         }
     }
@@ -60,13 +94,13 @@ struct AdBannerView: View {
                 BrandSqueegeeBadge(size: 38)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Siz rahat rahat çekin diye ÇEK ÇEK'i geliştirdik")
-                        .font(.caption.bold())
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text("Çekpas gibi su misali süpürür, galerini kirletmez!")
+                    Text("Zamanı gelince silinecekler varsa")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Text("ÇEK ÇEK burada!")
+                        .font(.caption.bold())
+                        .foregroundStyle(.orange)
                         .lineLimit(1)
                 }
 
@@ -148,16 +182,23 @@ struct InterstitialAdSheet: View {
                 Spacer()
 
                 VStack(spacing: 18) {
-                    BrandSqueegeeBadge(size: 104)
+                    BrandSqueegeeBadge(size: 108)
 
-                    Text("Siz Rahat Rahat Fotoğraf Çekin Diye\nÇEK ÇEK'i Geliştirdik!")
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
+                    VStack(spacing: 6) {
+                        Text("Zamanı Gelince Silinecekler Varsa")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary)
 
-                    Text("“Kamerayla çek, işin bitince çekpas gibi su misali süpürülsün — kişisel galerinde tek damla iz kalmasın!”")
+                        Text("ÇEK ÇEK Burada!")
+                            .font(.largeTitle.weight(.heavy))
+                            .foregroundStyle(.orange)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+
+                    Text("“Zamanı gelince silinecekler varsa ÇEK ÇEK burada — çekpas gibi su misali süpürür, galerinde iz kalmaz!”")
                         .font(.body.italic())
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
 
@@ -213,8 +254,8 @@ struct ProPaywallSheet: View {
                         Text("ÇEK ÇEK Pro")
                             .font(.largeTitle.bold())
 
-                        Text("“Fotoğrafları çek, çekpas gibi su misali süpür at — galerinde iz bile kalmasın!”")
-                            .font(.subheadline.italic())
+                        Text("“Zamanı gelince silinecekler varsa ÇEK ÇEK burada!”")
+                            .font(.subheadline.bold())
                             .foregroundStyle(.orange)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 12)
