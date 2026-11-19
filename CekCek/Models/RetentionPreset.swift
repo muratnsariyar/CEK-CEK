@@ -55,6 +55,7 @@ struct RetentionDuration: Codable, Equatable, Hashable, Identifiable {
     static let oneDay = RetentionDuration(days: 1, hours: 0, minutes: 0)
     static let threeDays = RetentionDuration(days: 3, hours: 0, minutes: 0)
     static let sevenDays = RetentionDuration(days: 7, hours: 0, minutes: 0)
+    static let thirtyDays = RetentionDuration(days: 30, hours: 0, minutes: 0)
 
     static func fromDays(_ days: Int) -> RetentionDuration {
         RetentionDuration(days: max(1, days), hours: 0, minutes: 0)
@@ -73,7 +74,10 @@ final class RetentionSettingsManager: ObservableObject {
         static let slot3 = "retentionDurationSlot3"
         static let lastUsed = "lastUsedRetentionDuration"
         static let selectedSlotIndex = "lastSelectedRetentionSlotIndex"
+        static let defaultsVersion = "retentionDefaultsVersion"
     }
+
+    private static let currentDefaultsVersion = 2
 
     @Published var slot1: RetentionDuration {
         didSet {
@@ -126,14 +130,39 @@ final class RetentionSettingsManager: ObservableObject {
 
     private init() {
         let defaults = UserDefaults.standard
-        let s1 = Self.loadDuration(forKey: Keys.slot1) ?? .oneDay
-        let s2 = Self.loadDuration(forKey: Keys.slot2) ?? .threeDays
-        let s3 = Self.loadDuration(forKey: Keys.slot3) ?? .sevenDays
+        let savedVersion = defaults.integer(forKey: Keys.defaultsVersion)
+        let isPro = defaults.bool(forKey: "isCekCekProEnabled")
 
-        let storedIndex = defaults.object(forKey: Keys.selectedSlotIndex) as? Int ?? 1
-        let clampedIndex = max(0, min(2, storedIndex))
-        let active = [s1, s2, s3]
-        let loadedLastUsed = Self.loadDuration(forKey: Keys.lastUsed) ?? active[clampedIndex]
+        let s1: RetentionDuration
+        let s2: RetentionDuration
+        let s3: RetentionDuration
+        let clampedIndex: Int
+        let loadedLastUsed: RetentionDuration
+
+        if savedVersion < Self.currentDefaultsVersion && !isPro {
+            s1 = .oneDay
+            s2 = .sevenDays
+            s3 = .thirtyDays
+            clampedIndex = 1
+            loadedLastUsed = .sevenDays
+            Self.saveDuration(s1, forKey: Keys.slot1)
+            Self.saveDuration(s2, forKey: Keys.slot2)
+            Self.saveDuration(s3, forKey: Keys.slot3)
+            Self.saveDuration(loadedLastUsed, forKey: Keys.lastUsed)
+            defaults.set(clampedIndex, forKey: Keys.selectedSlotIndex)
+            defaults.set(Self.currentDefaultsVersion, forKey: Keys.defaultsVersion)
+        } else {
+            s1 = Self.loadDuration(forKey: Keys.slot1) ?? .oneDay
+            s2 = Self.loadDuration(forKey: Keys.slot2) ?? .sevenDays
+            s3 = Self.loadDuration(forKey: Keys.slot3) ?? .thirtyDays
+            let storedIndex = defaults.object(forKey: Keys.selectedSlotIndex) as? Int ?? 1
+            clampedIndex = max(0, min(2, storedIndex))
+            let active = [s1, s2, s3]
+            loadedLastUsed = Self.loadDuration(forKey: Keys.lastUsed) ?? active[clampedIndex]
+            if savedVersion < Self.currentDefaultsVersion {
+                defaults.set(Self.currentDefaultsVersion, forKey: Keys.defaultsVersion)
+            }
+        }
 
         self.slot1 = s1
         self.slot2 = s2
@@ -184,10 +213,10 @@ final class RetentionSettingsManager: ObservableObject {
 
     func resetToDefaults() {
         slot1 = .oneDay
-        slot2 = .threeDays
-        slot3 = .sevenDays
+        slot2 = .sevenDays
+        slot3 = .thirtyDays
         selectedSlotIndex = 1
-        lastUsedDuration = .threeDays
+        lastUsedDuration = .sevenDays
     }
 
     private static func saveDuration(_ duration: RetentionDuration, forKey key: String) {

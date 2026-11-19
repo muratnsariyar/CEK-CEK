@@ -30,13 +30,10 @@ struct DurationWheelPickerSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                VStack(spacing: 6) {
+                VStack(spacing: 4) {
                     Text(currentDuration.title)
                         .font(.title.bold())
                         .foregroundStyle(.orange)
-                    Text("Minimum süre 1 dakikadır.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

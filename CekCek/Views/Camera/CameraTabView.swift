@@ -116,10 +116,8 @@ struct CameraTabView: View {
         .onDisappear {
             camera.stopSession()
         }
-        .sheet(item: $previewItem) { item in
-            NavigationStack {
-                MediaDetailView(item: item)
-            }
+        .fullScreenCover(item: $previewItem) { item in
+            MediaDetailView(item: item)
         }
         .sheet(item: $editingSlot) { slot in
             DurationWheelPickerSheet(

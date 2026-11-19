@@ -130,10 +130,8 @@ struct GalleryTabView: View {
                     }
                 }
             }
-            .sheet(item: $selectedItem) { item in
-                NavigationStack {
-                    MediaDetailView(item: item)
-                }
+            .fullScreenCover(item: $selectedItem) { item in
+                MediaDetailView(item: item, items: filteredItems)
             }
             .sheet(isPresented: $showCreateFolderSheet) {
                 FolderEditorSheet()

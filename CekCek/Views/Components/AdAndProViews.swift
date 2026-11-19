@@ -166,7 +166,7 @@ struct ProPaywallSheet: View {
                         featureRow(
                             icon: "timer",
                             title: "3 Süre Butonunu Özelleştirin",
-                            subtitle: "Sayaçla 1 dakikadan 30 güne kadar istediğiniz 3 saklama süresini kendiniz belirleyin."
+                            subtitle: "Gün, saat ve dakika cinsinden istediğiniz 3 saklama süresini kendiniz belirleyin."
                         )
                         featureRow(
                             icon: "nosign",

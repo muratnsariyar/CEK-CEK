@@ -20,6 +20,7 @@ struct SettingsTabView: View {
     @State private var showPurgeAllConfirm = false
     @State private var infoMessage: String?
     @State private var editingSlot: SettingsEditingSlot?
+    @State private var showFeedbackSheet = false
 
     private let leadHourOptions = [3, 6, 12, 24]
 
@@ -81,7 +82,7 @@ struct SettingsTabView: View {
                 } footer: {
                     Text(
                         monetization.isPro
-                            ? "Herhangi bir süre seçeneğine dokunarak Gün / Saat / Dakika sayacıyla dilediğiniz süreyi (minimum 1 dakika) belirleyebilirsiniz. En son seçtiğiniz süre otomatik olarak korunur."
+                            ? "Herhangi bir süre seçeneğine dokunarak Gün / Saat / Dakika sayacıyla dilediğiniz süreyi belirleyebilirsiniz. En son seçtiğiniz süre otomatik olarak korunur."
                             : "Kamera ekranında en son seçtiğiniz süre otomatik olarak korunur. 3 süre seçeneğini Gün / Saat / Dakika sayacıyla özelleştirmek CEK CEK Pro paketine dahildir."
                     )
                 }
@@ -167,6 +168,14 @@ struct SettingsTabView: View {
                     Text("Reklam tetikleme (50 hak) ve Pro sayaç özelleştirme özelliklerini test etmek içindir.")
                 }
 
+                Section("Destek & Geri Bildirim") {
+                    Button {
+                        showFeedbackSheet = true
+                    } label: {
+                        Label("Geliştiriciye Bildir", systemImage: "envelope.badge")
+                    }
+                }
+
                 Section("Hakkında") {
                     HStack {
                         Text("Uygulama")
@@ -193,6 +202,9 @@ struct SettingsTabView: View {
                 ) { newDuration in
                     retentionSettings.updateSlot(at: slot.id, to: newDuration)
                 }
+            }
+            .sheet(isPresented: $showFeedbackSheet) {
+                DeveloperFeedbackSheet()
             }
             .confirmationDialog(
                 "Kasadaki tüm fotoğraf ve videolar kalıcı olarak silinsin mi?",
