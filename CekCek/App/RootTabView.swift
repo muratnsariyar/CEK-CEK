@@ -27,7 +27,7 @@ struct RootTabView: View {
                     selectedTab = .gallery
                 })
                 .tabItem {
-                    Label("Çek", systemImage: "camera.fill")
+                    Label("ÇEK ÇEK", systemImage: "camera.fill")
                 }
                 .tag(MainTab.camera)
 

@@ -449,7 +449,6 @@ private struct MediaPageCanvas: View {
     @State private var fullImage: UIImage?
     @State private var player: AVPlayer?
     @State private var zoomScale: CGFloat = 1.0
-    @State private var gestureScale: CGFloat = 1.0
 
     var body: some View {
         ZStack {
@@ -464,31 +463,12 @@ private struct MediaPageCanvas: View {
                 }
             } else {
                 if let fullImage {
-                    Image(uiImage: fullImage)
-                        .resizable()
-                        .scaledToFit()
-                        .scaleEffect(zoomScale * gestureScale)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    gestureScale = value
-                                }
-                                .onEnded { value in
-                                    let finalScale = max(1.0, min(zoomScale * value, 4.0))
-                                    withAnimation(.spring(duration: 0.25)) {
-                                        zoomScale = finalScale
-                                        gestureScale = 1.0
-                                    }
-                                }
-                        )
-                        .onTapGesture(count: 2) {
-                            withAnimation(.spring(duration: 0.25)) {
-                                zoomScale = zoomScale > 1.05 ? 1.0 : 2.5
-                            }
-                        }
-                        .onTapGesture(count: 1) {
-                            onToggleChrome()
-                        }
+                    LiveTextPhotoView(
+                        image: fullImage,
+                        isActive: isActive,
+                        zoomScale: $zoomScale,
+                        onToggleChrome: onToggleChrome
+                    )
                 } else {
                     ProgressView()
                         .tint(.white)

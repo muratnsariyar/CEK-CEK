@@ -1,21 +1,70 @@
 import Combine
 import SwiftUI
 
+struct BrandSqueegeeBadge: View {
+    var size: CGFloat = 76
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.07, green: 0.13, blue: 0.24),
+                            Color(red: 0.12, green: 0.25, blue: 0.42)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size, height: size)
+                .shadow(color: .orange.opacity(0.28), radius: 10, y: 4)
+
+            // Su damlaları & çekpas süpürme efekti
+            Image(systemName: "drop.fill")
+                .font(.system(size: size * 0.18))
+                .foregroundStyle(.cyan.opacity(0.85))
+                .offset(x: -size * 0.22, y: -size * 0.20)
+
+            Image(systemName: "sparkles")
+                .font(.system(size: size * 0.18, weight: .bold))
+                .foregroundStyle(.orange)
+                .offset(x: size * 0.24, y: -size * 0.22)
+
+            // Kamera + Çekpas (squeegee) birleşimi
+            VStack(spacing: 2) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: size * 0.36, weight: .bold))
+                    .foregroundStyle(.white)
+
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(
+                        LinearGradient(
+                            colors: [.orange, .cyan],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: size * 0.54, height: max(4, size * 0.06))
+            }
+        }
+    }
+}
+
 struct AdBannerView: View {
     @ObservedObject var monetization = MonetizationService.shared
 
     var body: some View {
         if monetization.shouldShowAds {
             HStack(spacing: 10) {
-                Image(systemName: "megaphone.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
+                BrandSqueegeeBadge(size: 38)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("REKLAM ALANI")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.orange)
-                    Text("50 medya sınırı aşıldı • Silinince yenilenir")
+                    Text("Siz rahat rahat çekin diye ÇEK ÇEK'i geliştirdik")
+                        .font(.caption.bold())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text("Çekpas gibi su misali süpürür, galerini kirletmez!")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -26,7 +75,7 @@ struct AdBannerView: View {
                 Button {
                     monetization.showProPaywall = true
                 } label: {
-                    Text("Reklamları Kaldır (Pro)")
+                    Text("Pro'ya Geç")
                         .font(.caption2.bold())
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
@@ -58,15 +107,19 @@ struct InterstitialAdSheet: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(.systemBackground), Color.orange.opacity(0.14)],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [
+                    Color(.systemBackground),
+                    Color.cyan.opacity(0.10),
+                    Color.orange.opacity(0.16)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
             VStack(spacing: 24) {
                 HStack {
-                    Text("REKLAM")
+                    Text("ÇEK ÇEK • SPONSORLU")
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -94,20 +147,25 @@ struct InterstitialAdSheet: View {
 
                 Spacer()
 
-                VStack(spacing: 16) {
-                    Image(systemName: "sparkles.rectangle.stack.fill")
-                        .font(.system(size: 68))
-                        .foregroundStyle(.orange)
+                VStack(spacing: 18) {
+                    BrandSqueegeeBadge(size: 104)
 
-                    Text("50 Aktif Medya Sınırı Aşıldı")
+                    Text("Siz Rahat Rahat Fotoğraf Çekin Diye\nÇEK ÇEK'i Geliştirdik!")
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
 
-                    Text("Kasanızda 50'den fazla medya bulunduğu için minimum reklam gösteriliyor. Medyalar silindikçe hakkınız otomatik yenilenir veya ÇEK ÇEK Pro ile reklamları tamamen kaldırabilirsiniz.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text("“Kamerayla çek, işin bitince çekpas gibi su misali süpürülsün — kişisel galerinde tek damla iz kalmasın!”")
+                        .font(.body.italic())
+                        .foregroundStyle(.orange)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
+
+                    Text("Kasanızda 50'den fazla medya bulunduğu için bu ekranı görüyorsunuz. Medyalarınız silindikçe hakkınız otomatik yenilenir.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
                 }
 
                 Spacer()
@@ -147,19 +205,19 @@ struct ProPaywallSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    VStack(spacing: 10) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.orange)
-                            .padding(.top, 12)
+                VStack(spacing: 22) {
+                    VStack(spacing: 12) {
+                        BrandSqueegeeBadge(size: 88)
+                            .padding(.top, 8)
 
                         Text("ÇEK ÇEK Pro")
                             .font(.largeTitle.bold())
 
-                        Text("Geçici kameranızı tam kontrol altına alın")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Text("“Fotoğrafları çek, çekpas gibi su misali süpür at — galerinde iz bile kalmasın!”")
+                            .font(.subheadline.italic())
+                            .foregroundStyle(.orange)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
                     }
 
                     VStack(spacing: 14) {

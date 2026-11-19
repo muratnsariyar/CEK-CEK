@@ -76,14 +76,6 @@ struct CameraTabView: View {
                 if monetization.shouldShowAds && hasCapturedInCurrentSession {
                     AdBannerView()
                         .padding(.top, 6)
-                } else if !monetization.isPro && monetization.remainingAdFreeUsages <= 10 {
-                    Text("\(monetization.remainingAdFreeUsages)/\(MonetizationService.freeActiveLimit)")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(.black.opacity(0.55), in: Capsule())
-                        .padding(.top, 8)
                 }
 
                 Spacer()

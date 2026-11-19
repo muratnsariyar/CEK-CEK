@@ -10,13 +10,15 @@ struct LockScreenOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.orange)
+                BrandSqueegeeBadge(size: 88)
 
                 VStack(spacing: 8) {
                     Text("ÇEK ÇEK Kilitli")
                         .font(.title2.bold())
+
+                    Text("“Çek, işin görülsün; çekpas gibi su misali süpürülsün!”")
+                        .font(.caption.italic())
+                        .foregroundStyle(.orange)
 
                     Text("Geçici galerinize erişmek için \(lockService.biometricName) doğrulaması yapın.")
                         .font(.subheadline)
