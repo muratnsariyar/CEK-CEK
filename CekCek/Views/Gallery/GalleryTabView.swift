@@ -5,7 +5,7 @@ enum GalleryFilter: String, CaseIterable, Identifiable {
     case all = "Tümü"
     case photos = "Fotoğraf"
     case videos = "Video"
-    case expiringSoon = "Yakında Biten"
+    case expiringSoon = "Yakında"
 
     var id: String { rawValue }
 }
