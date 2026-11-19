@@ -164,7 +164,7 @@ struct MediaDetailView: View {
 
             // Süre Uzat
             Menu {
-                ForEach(RetentionPreset.allCases) { preset in
+                ForEach(RetentionSettingsManager.shared.uniqueActivePresets) { preset in
                     Button("+\(preset.title) Uzat") {
                         item.extend(by: preset)
                         try? modelContext.save()

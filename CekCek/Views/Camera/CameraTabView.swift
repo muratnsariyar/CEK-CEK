@@ -1,5 +1,4 @@
 import AVFoundation
-import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -8,17 +7,17 @@ struct CameraTabView: View {
     @Query(sort: \MediaFolder.createdAt) private var folders: [MediaFolder]
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var recentItems: [MediaItem]
 
-    @AppStorage("defaultRetentionPreset") private var defaultRetentionRaw: String = RetentionPreset.threeDays.rawValue
     @AppStorage("notificationLeadHours") private var notificationLeadHours: Int = 6
 
     @StateObject private var camera = CameraManager()
+    @ObservedObject private var retentionSettings = RetentionSettingsManager.shared
+    @ObservedObject private var monetization = MonetizationService.shared
 
     @State private var selectedRetention: RetentionPreset = .threeDays
     @State private var selectedFolderID: UUID?
     @State private var showFlashOverlay: Bool = false
     @State private var statusBanner: String?
     @State private var baseZoomFactor: CGFloat = 1.0
-    @State private var importedPickerItem: PhotosPickerItem?
     @State private var previewItem: MediaItem?
 
     var onOpenGallery: () -> Void
@@ -67,6 +66,20 @@ struct CameraTabView: View {
 
             VStack(spacing: 0) {
                 topBar
+
+                if monetization.shouldShowAds {
+                    AdBannerView()
+                        .padding(.top, 6)
+                } else if !monetization.isPro && monetization.remainingAdFreeUsages <= 10 && monetization.remainingAdFreeUsages > 0 {
+                    Text("Reklamsız kalan hak: \(monetization.remainingAdFreeUsages)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.55), in: Capsule())
+                        .padding(.top, 8)
+                }
+
                 Spacer()
 
                 if let banner = statusBanner {
@@ -85,7 +98,9 @@ struct CameraTabView: View {
             }
         }
         .onAppear {
-            selectedRetention = RetentionPreset(rawValue: defaultRetentionRaw) ?? .threeDays
+            if !retentionSettings.activePresets.contains(selectedRetention) {
+                selectedRetention = retentionSettings.defaultPreset
+            }
             if selectedFolderID == nil {
                 selectedFolderID = folders.first?.id
             }
@@ -100,11 +115,9 @@ struct CameraTabView: View {
         .onDisappear {
             camera.stopSession()
         }
-        .onChange(of: importedPickerItem) { _, newValue in
-            guard let newValue else { return }
-            Task {
-                await importFromPhotosPicker(newValue)
-                importedPickerItem = nil
+        .onChange(of: retentionSettings.activePresets) { _, newPresets in
+            if !newPresets.contains(selectedRetention) {
+                selectedRetention = retentionSettings.defaultPreset
             }
         }
         .sheet(item: $previewItem) { item in
@@ -182,7 +195,11 @@ struct CameraTabView: View {
             ForEach(folders) { folder in
                 Button {
                     selectedFolderID = folder.id
-                    selectedRetention = folder.defaultPreset
+                    if retentionSettings.activePresets.contains(folder.defaultPreset) {
+                        selectedRetention = folder.defaultPreset
+                    } else {
+                        selectedRetention = retentionSettings.defaultPreset
+                    }
                 } label: {
                     Label(folder.name, systemImage: folder.iconName)
                 }
@@ -207,24 +224,24 @@ struct CameraTabView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 14) {
-            // Saklama Süresi Hızlı Seçici
-            HStack(spacing: 6) {
+            // 3 Adet Özelleştirilebilir Saklama Süresi
+            HStack(spacing: 8) {
                 Image(systemName: "timer")
                     .font(.caption.bold())
                     .foregroundStyle(.orange)
-                ForEach(RetentionPreset.allCases) { preset in
+                ForEach(Array(retentionSettings.activePresets.enumerated()), id: \.offset) { _, preset in
                     Button {
                         withAnimation(.snappy) {
                             selectedRetention = preset
                         }
                     } label: {
-                        Text(preset.shortLabel)
+                        Text(preset.title)
                             .font(.caption.bold())
                             .foregroundStyle(selectedRetention == preset ? .black : .white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
                             .background(
-                                selectedRetention == preset ? Color.orange : Color.white.opacity(0.15),
+                                selectedRetention == preset ? Color.orange : Color.white.opacity(0.16),
                                 in: Capsule()
                             )
                     }
@@ -253,7 +270,6 @@ struct CameraTabView: View {
 
             // Deklanşör Satırı
             HStack {
-                // Son Çekilen Önizleme
                 Button {
                     if let item = latestActiveItem {
                         previewItem = item
@@ -267,7 +283,6 @@ struct CameraTabView: View {
 
                 Spacer()
 
-                // Ana Çekim Tuşu
                 Button {
                     handleShutterTap()
                 } label: {
@@ -295,19 +310,8 @@ struct CameraTabView: View {
 
                 Spacer()
 
-                // İçe Aktar (Opsiyonel)
-                PhotosPicker(selection: $importedPickerItem, matching: .images) {
-                    VStack(spacing: 2) {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 18, weight: .semibold))
-                        Text("Aktar")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.white)
+                Color.clear
                     .frame(width: 56, height: 56)
-                    .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
-                }
-                .disabled(camera.isRecording)
             }
             .padding(.horizontal, 28)
         }
@@ -356,7 +360,7 @@ struct CameraTabView: View {
                 .font(.title3.bold())
                 .foregroundStyle(.white)
 
-            Text("iOS Simülatör'de fiziksel kamera yoktur.\nAşağıdaki deklanşöre basarak test amaçlı demo fotoğraf çekebilir veya sağ alttan fotoğraf aktarabilirsiniz.")
+            Text("iOS Simülatör'de fiziksel kamera yoktur.\nAşağıdaki deklanşöre basarak test amaçlı demo fotoğraf çekebilirsiniz.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
                 .multilineTextAlignment(.center)
@@ -450,6 +454,7 @@ struct CameraTabView: View {
             modelContext.insert(item)
             try? modelContext.save()
             NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: notificationLeadHours)
+            monetization.recordCapture()
             showBanner("Kasaya kaydedildi • \(selectedRetention.title)")
         } catch {
             camera.errorMessage = error.localizedDescription
@@ -477,6 +482,7 @@ struct CameraTabView: View {
                     modelContext.insert(item)
                     try? modelContext.save()
                     NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: leadHours)
+                    monetization.recordCapture()
                     showBanner("Video kasaya kaydedildi • \(retention.title)")
                 }
             } catch {
@@ -484,13 +490,6 @@ struct CameraTabView: View {
                     camera.errorMessage = error.localizedDescription
                 }
             }
-        }
-    }
-
-    private func importFromPhotosPicker(_ pickerItem: PhotosPickerItem) async {
-        guard let data = try? await pickerItem.loadTransferable(type: Data.self) else { return }
-        await MainActor.run {
-            saveCapturedPhoto(data: data)
         }
     }
 

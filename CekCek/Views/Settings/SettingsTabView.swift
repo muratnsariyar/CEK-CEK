@@ -5,8 +5,9 @@ struct SettingsTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allItems: [MediaItem]
     @ObservedObject var lockService: AppLockService
+    @ObservedObject private var retentionSettings = RetentionSettingsManager.shared
+    @ObservedObject private var monetization = MonetizationService.shared
 
-    @AppStorage("defaultRetentionPreset") private var defaultRetentionRaw: String = RetentionPreset.threeDays.rawValue
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("notificationLeadHours") private var notificationLeadHours: Int = 6
     @AppStorage("startOnCameraTab") private var startOnCameraTab: Bool = true
@@ -20,14 +21,92 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Çekim & Saklama") {
-                    Picker("Varsayılan Saklama Süresi", selection: $defaultRetentionRaw) {
-                        ForEach(RetentionPreset.allCases) { preset in
-                            Text(preset.title).tag(preset.rawValue)
+                Section("Üyelik & Reklamsız Kullanım") {
+                    HStack {
+                        Label(
+                            monetization.isPro ? "CEK CEK Pro" : "Ücretsiz Paket",
+                            systemImage: monetization.isPro ? "crown.fill" : "person.crop.circle"
+                        )
+                        .foregroundStyle(monetization.isPro ? .orange : .primary)
+                        Spacer()
+                        Text(monetization.isPro ? "Reklamsız & Tam Erişim" : "Aktif")
+                            .font(.subheadline)
+                            .foregroundStyle(monetization.isPro ? .green : .secondary)
+                    }
+
+                    if !monetization.isPro {
+                        HStack {
+                            Text("Reklamsız Kullanım Hakkı")
+                            Spacer()
+                            if monetization.remainingAdFreeUsages > 0 {
+                                Text("\(monetization.remainingAdFreeUsages) / \(MonetizationService.freeAdQuota) kaldı")
+                                    .foregroundStyle(.orange)
+                                    .fontWeight(.semibold)
+                            } else {
+                                Text("50 hak doldu — Reklamlar aktif")
+                                    .foregroundStyle(.red)
+                                    .font(.caption.bold())
+                            }
+                        }
+
+                        Button {
+                            monetization.showProPaywall = true
+                        } label: {
+                            Label("CEK CEK Pro'ya Geç", systemImage: "crown.fill")
+                                .foregroundStyle(.orange)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+
+                Section {
+                    if monetization.isPro {
+                        Picker("1. Süre Butonu", selection: $retentionSettings.slot1) {
+                            ForEach(RetentionPreset.allCases) { preset in
+                                Text(preset.title).tag(preset)
+                            }
+                        }
+                        Picker("2. Süre Butonu", selection: $retentionSettings.slot2) {
+                            ForEach(RetentionPreset.allCases) { preset in
+                                Text(preset.title).tag(preset)
+                            }
+                        }
+                        Picker("3. Süre Butonu", selection: $retentionSettings.slot3) {
+                            ForEach(RetentionPreset.allCases) { preset in
+                                Text(preset.title).tag(preset)
+                            }
+                        }
+
+                        Picker("Varsayılan Saklama Süresi", selection: $retentionSettings.defaultPreset) {
+                            ForEach(retentionSettings.uniqueActivePresets) { preset in
+                                Text(preset.title).tag(preset)
+                            }
+                        }
+
+                        Button("Süreleri Varsayılana Sıfırla") {
+                            retentionSettings.resetToDefaults()
+                        }
+                    } else {
+                        proLockedDurationRow(title: "1. Süre Butonu", value: retentionSettings.slot1.title)
+                        proLockedDurationRow(title: "2. Süre Butonu", value: retentionSettings.slot2.title)
+                        proLockedDurationRow(title: "3. Süre Butonu", value: retentionSettings.slot3.title)
+
+                        Picker("Varsayılan Saklama Süresi", selection: $retentionSettings.defaultPreset) {
+                            ForEach(retentionSettings.uniqueActivePresets) { preset in
+                                Text(preset.title).tag(preset)
+                            }
                         }
                     }
 
                     Toggle("Uygulama Kamerada Açılsın", isOn: $startOnCameraTab)
+                } header: {
+                    Text("Çekim & Saklama Süreleri (3 Seçenek)")
+                } footer: {
+                    Text(
+                        monetization.isPro
+                            ? "Kamerada görünecek 3 saklama süresi butonunu dilediğiniz gibi ayarlayabilirsiniz."
+                            : "Kamera ekranındaki 3 saklama süresini özelleştirmek CEK CEK Pro paketine dahildir."
+                    )
                 }
 
                 Section {
@@ -69,7 +148,7 @@ struct SettingsTabView: View {
                     Text("Etkinleştirildiğinde uygulama arka plana alındığında otomatik kilitlenir.")
                 }
 
-                Section("Kasa Depolama") {
+                Section {
                     HStack {
                         Text("Aktif Medya Sayısı")
                         Spacer()
@@ -84,21 +163,31 @@ struct SettingsTabView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Button {
-                        let deleted = ExpirationService.purgeExpiredItems(in: modelContext)
-                        refreshVaultSize()
-                        infoMessage = deleted > 0
-                            ? "\(deleted) süresi dolmuş medya temizlendi."
-                            : "Süresi dolmuş medya bulunamadı."
-                    } label: {
-                        Label("Süresi Dolanları Şimdi Temizle", systemImage: "sparkles")
-                    }
-
                     Button(role: .destructive) {
                         showPurgeAllConfirm = true
                     } label: {
                         Label("Tüm Geçici Kasayı Boşalt", systemImage: "trash")
                     }
+                } header: {
+                    Text("Kasa Depolama")
+                } footer: {
+                    Text("Süresi dolan fotoğraf ve videolar müdahaleye gerek kalmadan otomatik olarak silinir.")
+                }
+
+                Section {
+                    Toggle("Pro Paketi Simüle Et", isOn: $monetization.isPro)
+
+                    Button("50 Kullanım Hakkını Doldur (Reklamları Başlat)") {
+                        monetization.simulateQuotaExhausted()
+                    }
+
+                    Button("Kullanım Sayacını Sıfırla (0/50)") {
+                        monetization.resetUsageQuota()
+                    }
+                } header: {
+                    Text("Geliştirici Testi")
+                } footer: {
+                    Text("Reklam tetikleme (50 hak) ve Pro süre özelleştirme özelliklerini test etmek içindir.")
                 }
 
                 Section("Hakkında") {
@@ -138,6 +227,26 @@ struct SettingsTabView: View {
                 Button("Tamam", role: .cancel) {}
             } message: {
                 Text(infoMessage ?? "")
+            }
+        }
+    }
+
+    private func proLockedDurationRow(title: String, value: String) -> some View {
+        Button {
+            monetization.showProPaywall = true
+        } label: {
+            HStack {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(value)
+                    .foregroundStyle(.secondary)
+                Text("PRO")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.orange, in: Capsule())
             }
         }
     }

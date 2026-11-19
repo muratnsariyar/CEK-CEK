@@ -1,10 +1,10 @@
+import Combine
 import SwiftData
 import SwiftUI
 
 enum MainTab: Hashable {
     case camera
     case gallery
-    case folders
     case settings
 }
 
@@ -14,8 +14,11 @@ struct RootTabView: View {
     @AppStorage("startOnCameraTab") private var startOnCameraTab: Bool = true
 
     @StateObject private var lockService = AppLockService()
+    @ObservedObject private var monetization = MonetizationService.shared
     @State private var selectedTab: MainTab = .camera
     @State private var didConfigureInitialTab = false
+
+    private let expirationCheckTimer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -33,12 +36,6 @@ struct RootTabView: View {
                         Label("Galeri", systemImage: "photo.stack.fill")
                     }
                     .tag(MainTab.gallery)
-
-                FoldersTabView()
-                    .tabItem {
-                        Label("Klasörler", systemImage: "folder.fill")
-                    }
-                    .tag(MainTab.folders)
 
                 SettingsTabView(lockService: lockService)
                     .tabItem {
@@ -71,6 +68,15 @@ struct RootTabView: View {
             default:
                 break
             }
+        }
+        .onReceive(expirationCheckTimer) { _ in
+            ExpirationService.purgeExpiredItems(in: modelContext)
+        }
+        .sheet(isPresented: $monetization.showProPaywall) {
+            ProPaywallSheet()
+        }
+        .fullScreenCover(isPresented: $monetization.showInterstitialAd) {
+            InterstitialAdSheet()
         }
     }
 }

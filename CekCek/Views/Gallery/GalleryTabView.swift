@@ -16,8 +16,8 @@ struct GalleryTabView: View {
     @Query(sort: \MediaFolder.createdAt) private var folders: [MediaFolder]
 
     @AppStorage("notificationLeadHours") private var notificationLeadHours: Int = 6
-
-    var lockedFolder: MediaFolder? = nil
+    @ObservedObject private var retentionSettings = RetentionSettingsManager.shared
+    @ObservedObject private var monetization = MonetizationService.shared
 
     @State private var selectedFilter: GalleryFilter = .all
     @State private var selectedFolderID: UUID? = nil
@@ -27,6 +27,8 @@ struct GalleryTabView: View {
     @State private var selectedItemIDs: Set<UUID> = []
     @State private var showBatchShareSheet = false
     @State private var showBatchDeleteConfirm = false
+    @State private var showCreateFolderSheet = false
+    @State private var editingFolder: MediaFolder?
 
     private let columns = [
         GridItem(.flexible(), spacing: 6),
@@ -38,9 +40,7 @@ struct GalleryTabView: View {
         allItems.filter { item in
             guard !item.isExpired else { return false }
 
-            if let lockedFolder {
-                guard item.folder?.id == lockedFolder.id else { return false }
-            } else if let selectedFolderID {
+            if let selectedFolderID {
                 guard item.folder?.id == selectedFolderID else { return false }
             }
 
@@ -71,94 +71,94 @@ struct GalleryTabView: View {
     }
 
     var body: some View {
-        Group {
-            if lockedFolder == nil {
-                NavigationStack {
-                    contentView
-                }
-            } else {
-                contentView
-            }
-        }
-    }
+        NavigationStack {
+            VStack(spacing: 0) {
+                filterHeader
 
-    private var contentView: some View {
-        VStack(spacing: 0) {
-            filterHeader
-
-            if filteredItems.isEmpty {
-                emptyStateView
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 6) {
-                        ForEach(filteredItems) { item in
-                            MediaGridItemView(
-                                item: item,
-                                isSelectionMode: isSelectionMode,
-                                isSelected: selectedItemIDs.contains(item.id)
-                            )
-                            .onTapGesture {
-                                if isSelectionMode {
-                                    toggleSelection(for: item)
-                                } else {
-                                    selectedItem = item
+                if filteredItems.isEmpty {
+                    emptyStateView
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 6) {
+                            ForEach(filteredItems) { item in
+                                MediaGridItemView(
+                                    item: item,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedItemIDs.contains(item.id)
+                                )
+                                .onTapGesture {
+                                    if isSelectionMode {
+                                        toggleSelection(for: item)
+                                    } else {
+                                        selectedItem = item
+                                    }
+                                }
+                                .onLongPressGesture {
+                                    if !isSelectionMode {
+                                        isSelectionMode = true
+                                        selectedItemIDs = [item.id]
+                                    }
                                 }
                             }
-                            .onLongPressGesture {
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                if isSelectionMode && !selectedItemIDs.isEmpty {
+                    batchActionBar
+                }
+
+                if monetization.shouldShowAds {
+                    AdBannerView()
+                }
+            }
+            .navigationTitle("Geçici Galeri")
+            .searchable(text: $searchText, prompt: "Not veya klasör ara")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !filteredItems.isEmpty {
+                        Button(isSelectionMode ? "Bitti" : "Seç") {
+                            withAnimation {
+                                isSelectionMode.toggle()
                                 if !isSelectionMode {
-                                    isSelectionMode = true
-                                    selectedItemIDs = [item.id]
+                                    selectedItemIDs.removeAll()
                                 }
                             }
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
                 }
             }
-
-            if isSelectionMode && !selectedItemIDs.isEmpty {
-                batchActionBar
+            .sheet(item: $selectedItem) { item in
+                NavigationStack {
+                    MediaDetailView(item: item)
+                }
             }
-        }
-        .navigationTitle(lockedFolder?.name ?? "Geçici Galeri")
-        .searchable(text: $searchText, prompt: "Not veya klasör ara")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if !filteredItems.isEmpty {
-                    Button(isSelectionMode ? "Bitti" : "Seç") {
-                        withAnimation {
-                            isSelectionMode.toggle()
-                            if !isSelectionMode {
-                                selectedItemIDs.removeAll()
-                            }
-                        }
+            .sheet(isPresented: $showCreateFolderSheet) {
+                FolderEditorSheet()
+            }
+            .sheet(item: $editingFolder) { folder in
+                FolderEditorSheet(editingFolder: folder)
+            }
+            .sheet(isPresented: $showBatchShareSheet) {
+                let urls = selectedItems.map { MediaStorageService.shared.fileURL(for: $0.fileName) }
+                ShareSheet(items: urls)
+            }
+            .confirmationDialog(
+                "\(selectedItems.count) medya kalıcı olarak silinsin mi?",
+                isPresented: $showBatchDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Hepsini Sil", role: .destructive) {
+                    for item in selectedItems {
+                        ExpirationService.deleteItem(item, in: modelContext)
                     }
+                    selectedItemIDs.removeAll()
+                    isSelectionMode = false
                 }
+                Button("Vazgeç", role: .cancel) {}
             }
-        }
-        .sheet(item: $selectedItem) { item in
-            NavigationStack {
-                MediaDetailView(item: item)
-            }
-        }
-        .sheet(isPresented: $showBatchShareSheet) {
-            let urls = selectedItems.map { MediaStorageService.shared.fileURL(for: $0.fileName) }
-            ShareSheet(items: urls)
-        }
-        .confirmationDialog(
-            "\(selectedItems.count) medya kalıcı olarak silinsin mi?",
-            isPresented: $showBatchDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Hepsini Sil", role: .destructive) {
-                for item in selectedItems {
-                    ExpirationService.deleteItem(item, in: modelContext)
-                }
-                selectedItemIDs.removeAll()
-                isSelectionMode = false
-            }
-            Button("Vazgeç", role: .cancel) {}
         }
     }
 
@@ -172,25 +172,58 @@ struct GalleryTabView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, 12)
 
-            if lockedFolder == nil && !folders.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        folderChip(title: "Tümü", icon: "square.grid.2x2", color: .orange, isSelected: selectedFolderID == nil) {
-                            selectedFolderID = nil
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    folderChip(title: "Tümü", icon: "square.grid.2x2", color: .orange, isSelected: selectedFolderID == nil) {
+                        selectedFolderID = nil
+                    }
+
+                    ForEach(folders) { folder in
+                        folderChip(
+                            title: folder.name,
+                            icon: folder.iconName,
+                            color: folder.color,
+                            isSelected: selectedFolderID == folder.id
+                        ) {
+                            selectedFolderID = folder.id
                         }
-                        ForEach(folders) { folder in
-                            folderChip(
-                                title: folder.name,
-                                icon: folder.iconName,
-                                color: folder.color,
-                                isSelected: selectedFolderID == folder.id
-                            ) {
-                                selectedFolderID = folder.id
+                        .contextMenu {
+                            Button {
+                                editingFolder = folder
+                            } label: {
+                                Label("Düzenle", systemImage: "pencil")
+                            }
+
+                            if !folder.isSystemDefault {
+                                Button(role: .destructive) {
+                                    if selectedFolderID == folder.id {
+                                        selectedFolderID = nil
+                                    }
+                                    modelContext.delete(folder)
+                                    try? modelContext.save()
+                                } label: {
+                                    Label("Klasörü Sil", systemImage: "trash")
+                                }
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
+
+                    Button {
+                        showCreateFolderSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.caption.bold())
+                            Text("Klasör")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.orange.opacity(0.14), in: Capsule())
+                    }
                 }
+                .padding(.horizontal, 12)
             }
         }
         .padding(.vertical, 8)
@@ -222,7 +255,7 @@ struct GalleryTabView: View {
         ContentUnavailableView {
             Label("Geçici Galeri Boş", systemImage: "photo.stack")
         } description: {
-            Text("Çektiğiniz geçici fotoğraf ve videolar burada saklanır ve süresi dolduğunda otomatik temizlenir.")
+            Text("Çektiğiniz geçici fotoğraf ve videolar burada saklanır ve süresi dolduğunda otomatik silinir.")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -238,7 +271,7 @@ struct GalleryTabView: View {
             Spacer()
 
             Menu {
-                ForEach(RetentionPreset.allCases) { preset in
+                ForEach(retentionSettings.uniqueActivePresets) { preset in
                     Button("+\(preset.title) Uzat") {
                         for item in selectedItems {
                             item.extend(by: preset)
