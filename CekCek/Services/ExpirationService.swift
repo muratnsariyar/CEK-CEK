@@ -13,6 +13,7 @@ enum ExpirationService {
 
         let now = Date()
         var deletedCount = 0
+        var activeCount = 0
         var validFileNames = Set<String>()
 
         for item in allItems {
@@ -25,6 +26,7 @@ enum ExpirationService {
                 context.delete(item)
                 deletedCount += 1
             } else {
+                activeCount += 1
                 validFileNames.insert(item.fileName)
                 if let thumb = item.thumbnailFileName {
                     validFileNames.insert(thumb)
@@ -37,7 +39,16 @@ enum ExpirationService {
         }
 
         MediaStorageService.shared.cleanupOrphanedFiles(validFileNames: validFileNames)
+        MonetizationService.shared.updateActiveCount(activeCount)
         return deletedCount
+    }
+
+    @MainActor
+    static func activeMediaCount(in context: ModelContext) -> Int {
+        let now = Date()
+        let descriptor = FetchDescriptor<MediaItem>()
+        guard let allItems = try? context.fetch(descriptor) else { return 0 }
+        return allItems.filter { $0.expiresAt > now }.count
     }
 
     @MainActor
@@ -49,6 +60,7 @@ enum ExpirationService {
         NotificationService.shared.cancelReminder(for: item.id)
         context.delete(item)
         try? context.save()
+        MonetizationService.shared.updateActiveCount(activeMediaCount(in: context))
     }
 
     @MainActor
@@ -66,6 +78,7 @@ enum ExpirationService {
         }
         try? context.save()
         MediaStorageService.shared.cleanupOrphanedFiles(validFileNames: [])
+        MonetizationService.shared.updateActiveCount(0)
     }
 
     static func registerBackgroundTask(modelContainer: ModelContainer) {

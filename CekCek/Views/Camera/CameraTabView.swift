@@ -74,14 +74,18 @@ struct CameraTabView: View {
                 if monetization.shouldShowAds {
                     AdBannerView()
                         .padding(.top, 6)
-                } else if !monetization.isPro && monetization.remainingAdFreeUsages <= 10 && monetization.remainingAdFreeUsages > 0 {
-                    Text("Reklamsız kalan hak: \(monetization.remainingAdFreeUsages)")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(.black.opacity(0.55), in: Capsule())
-                        .padding(.top, 8)
+                } else if !monetization.isPro && monetization.remainingAdFreeUsages <= 10 {
+                    Text(
+                        monetization.remainingAdFreeUsages > 0
+                            ? "Reklamsız kalan hak: \(monetization.remainingAdFreeUsages) / \(MonetizationService.freeActiveLimit)"
+                            : "Son ücretsiz hak (50/50) • Silinince yenilenir"
+                    )
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.55), in: Capsule())
+                    .padding(.top, 8)
                 }
 
                 Spacer()
@@ -475,7 +479,8 @@ struct CameraTabView: View {
             modelContext.insert(item)
             try? modelContext.save()
             NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: notificationLeadHours)
-            monetization.recordCapture()
+            let activeCount = ExpirationService.activeMediaCount(in: modelContext)
+            monetization.recordCapture(newActiveCount: activeCount)
             showBanner("Kasaya kaydedildi • \(duration.title)")
         } catch {
             camera.errorMessage = error.localizedDescription
@@ -503,7 +508,8 @@ struct CameraTabView: View {
                     modelContext.insert(item)
                     try? modelContext.save()
                     NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: leadHours)
-                    monetization.recordCapture()
+                    let activeCount = ExpirationService.activeMediaCount(in: modelContext)
+                    monetization.recordCapture(newActiveCount: activeCount)
                     showBanner("Video kasaya kaydedildi • \(duration.title)")
                 }
             } catch {

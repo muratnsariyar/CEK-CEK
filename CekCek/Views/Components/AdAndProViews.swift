@@ -15,7 +15,7 @@ struct AdBannerView: View {
                     Text("REKLAM ALANI")
                         .font(.caption2.bold())
                         .foregroundStyle(.orange)
-                    Text("50 ücretsiz kullanım hakkınız doldu")
+                    Text("50 medya sınırı aşıldı • Silinince yenilenir")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -99,11 +99,11 @@ struct InterstitialAdSheet: View {
                         .font(.system(size: 68))
                         .foregroundStyle(.orange)
 
-                    Text("50 Ücretsiz Kullanım Hakkınız Doldu")
+                    Text("50 Aktif Medya Sınırı Aşıldı")
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
 
-                    Text("Uygulamayı ücretsiz kullanmaya devam edebilirsiniz. Reklamları tamamen kaldırmak ve 3 saklama süresini dilediğiniz gibi özelleştirmek için CEK CEK Pro'ya geçebilirsiniz.")
+                    Text("Kasanızda 50'den fazla medya bulunduğu için minimum reklam gösteriliyor. Medyalar silindikçe hakkınız otomatik yenilenir veya CEK CEK Pro ile reklamları tamamen kaldırabilirsiniz.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -171,7 +171,7 @@ struct ProPaywallSheet: View {
                         featureRow(
                             icon: "nosign",
                             title: "Tamamen Reklamsız Deneyim",
-                            subtitle: "50 kullanım sonrasında çıkan tüm banner ve tam ekran reklamları kaldırın."
+                            subtitle: "50 medya sınırını aşsanız bile tüm reklamları tamamen kaldırın."
                         )
                         featureRow(
                             icon: "folder.badge.plus",

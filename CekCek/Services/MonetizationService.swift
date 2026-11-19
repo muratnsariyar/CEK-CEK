@@ -3,18 +3,15 @@ import Foundation
 @MainActor
 final class MonetizationService: ObservableObject {
     static let shared = MonetizationService()
-    static let freeAdQuota: Int = 50
+    static let freeActiveLimit: Int = 50
+    private static let interstitialFrequency: Int = 5
 
     private enum Keys {
-        static let totalUsageCount = "totalCaptureUsageCount"
         static let isPro = "isCekCekProEnabled"
     }
 
-    @Published var totalUsageCount: Int {
-        didSet {
-            UserDefaults.standard.set(totalUsageCount, forKey: Keys.totalUsageCount)
-        }
-    }
+    @Published var activeItemCount: Int = 0
+    @Published var simulateLimitExceeded: Bool = false
 
     @Published var isPro: Bool {
         didSet {
@@ -28,33 +25,39 @@ final class MonetizationService: ObservableObject {
     @Published var showInterstitialAd: Bool = false
     @Published var showProPaywall: Bool = false
 
+    private var capturesWhileOverLimit: Int = 0
+
     private init() {
-        let defaults = UserDefaults.standard
-        self.totalUsageCount = defaults.integer(forKey: Keys.totalUsageCount)
-        self.isPro = defaults.bool(forKey: Keys.isPro)
+        self.isPro = UserDefaults.standard.bool(forKey: Keys.isPro)
+    }
+
+    var effectiveActiveCount: Int {
+        simulateLimitExceeded ? (Self.freeActiveLimit + 1) : activeItemCount
     }
 
     var remainingAdFreeUsages: Int {
-        max(0, Self.freeAdQuota - totalUsageCount)
+        max(0, Self.freeActiveLimit - effectiveActiveCount)
     }
 
     var shouldShowAds: Bool {
-        !isPro && totalUsageCount >= Self.freeAdQuota
+        !isPro && effectiveActiveCount > Self.freeActiveLimit
     }
 
-    func recordCapture() {
-        totalUsageCount += 1
-        if shouldShowAds && (totalUsageCount - Self.freeAdQuota) % 3 == 0 {
-            showInterstitialAd = true
+    func updateActiveCount(_ count: Int) {
+        activeItemCount = max(0, count)
+        if !shouldShowAds {
+            showInterstitialAd = false
+            capturesWhileOverLimit = 0
         }
     }
 
-    func simulateQuotaExhausted() {
-        totalUsageCount = Self.freeAdQuota
-    }
+    func recordCapture(newActiveCount: Int) {
+        updateActiveCount(newActiveCount)
+        guard shouldShowAds else { return }
 
-    func resetUsageQuota() {
-        totalUsageCount = 0
-        showInterstitialAd = false
+        capturesWhileOverLimit += 1
+        if capturesWhileOverLimit % Self.interstitialFrequency == 0 {
+            showInterstitialAd = true
+        }
     }
 }

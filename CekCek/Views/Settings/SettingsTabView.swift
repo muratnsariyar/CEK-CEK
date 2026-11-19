@@ -42,16 +42,16 @@ struct SettingsTabView: View {
 
                     if !monetization.isPro {
                         HStack {
-                            Text("Reklamsız Kullanım Hakkı")
+                            Text("Reklamsız Kapasite")
                             Spacer()
-                            if monetization.remainingAdFreeUsages > 0 {
-                                Text("\(monetization.remainingAdFreeUsages) / \(MonetizationService.freeAdQuota) kaldı")
-                                    .foregroundStyle(.orange)
-                                    .fontWeight(.semibold)
-                            } else {
-                                Text("50 hak doldu — Reklamlar aktif")
+                            if monetization.shouldShowAds {
+                                Text("50 sınırı aşıldı • Silinince yenilenir")
                                     .foregroundStyle(.red)
                                     .font(.caption.bold())
+                            } else {
+                                Text("\(monetization.remainingAdFreeUsages) / \(MonetizationService.freeActiveLimit) boş hak")
+                                    .foregroundStyle(.orange)
+                                    .fontWeight(.semibold)
                             }
                         }
 
@@ -155,17 +155,15 @@ struct SettingsTabView: View {
                 Section {
                     Toggle("Pro Paketi Simüle Et", isOn: $monetization.isPro)
 
-                    Button("50 Kullanım Hakkını Doldur (Reklamları Başlat)") {
-                        monetization.simulateQuotaExhausted()
-                    }
+                    Toggle("50 Sınırı Aşılmış Gibi Test Et", isOn: $monetization.simulateLimitExceeded)
 
-                    Button("Kullanım Sayacını Sıfırla (0/50)") {
-                        monetization.resetUsageQuota()
+                    Button("Örnek Tam Ekran Reklam Göster") {
+                        monetization.showInterstitialAd = true
                     }
                 } header: {
                     Text("Geliştirici Testi")
                 } footer: {
-                    Text("Reklam tetikleme (50 hak) ve Pro sayaç özelleştirme özelliklerini test etmek içindir.")
+                    Text("Kasada en fazla 50 medya varken hiç reklam gösterilmez; medyalar silindikçe haklar yenilenir. Buradan sınırı aşma durumunu ve Pro özellikleri test edebilirsiniz.")
                 }
 
                 Section("Destek & Geri Bildirim") {
