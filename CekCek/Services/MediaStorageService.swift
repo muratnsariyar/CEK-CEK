@@ -221,7 +221,7 @@ final class MediaStorageService {
                 .font: UIFont.systemFont(ofSize: 72, weight: .bold),
                 .foregroundColor: UIColor.systemOrange
             ]
-            "CEK CEK".draw(at: CGPoint(x: 150, y: 340), withAttributes: titleAttr)
+            "ÇEK ÇEK".draw(at: CGPoint(x: 150, y: 340), withAttributes: titleAttr)
 
             let subtitleAttr: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 40, weight: .medium),
@@ -245,7 +245,7 @@ final class MediaStorageService {
 
             Bu görüntü kişisel Fotoğraflar
             galerisine kaydedilmedi; yalnızca
-            CEK CEK kasasında saklanır.
+            ÇEK ÇEK kasasında saklanır.
             """
             body.draw(
                 in: CGRect(x: 150, y: 560, width: size.width - 300, height: 500),

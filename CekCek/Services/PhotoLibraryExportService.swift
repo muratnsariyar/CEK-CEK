@@ -10,7 +10,7 @@ enum PhotoExportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .permissionDenied:
-            return "Fotoğraflar uygulamasına kaydetme izni verilmedi. Ayarlar > CEK CEK üzerinden izin verebilirsiniz."
+            return "Fotoğraflar uygulamasına kaydetme izni verilmedi. Ayarlar > ÇEK ÇEK üzerinden izin verebilirsiniz."
         case .fileMissing:
             return "Medya dosyası kasada bulunamadı."
         case .exportFailed(let detail):

@@ -103,7 +103,7 @@ struct InterstitialAdSheet: View {
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
 
-                    Text("Kasanızda 50'den fazla medya bulunduğu için minimum reklam gösteriliyor. Medyalar silindikçe hakkınız otomatik yenilenir veya CEK CEK Pro ile reklamları tamamen kaldırabilirsiniz.")
+                    Text("Kasanızda 50'den fazla medya bulunduğu için minimum reklam gösteriliyor. Medyalar silindikçe hakkınız otomatik yenilenir veya ÇEK ÇEK Pro ile reklamları tamamen kaldırabilirsiniz.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -119,7 +119,7 @@ struct InterstitialAdSheet: View {
                         monetization.showProPaywall = true
                     }
                 } label: {
-                    Label("CEK CEK Pro ile Reklamları Kaldır", systemImage: "crown.fill")
+                    Label("ÇEK ÇEK Pro ile Reklamları Kaldır", systemImage: "crown.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -154,7 +154,7 @@ struct ProPaywallSheet: View {
                             .foregroundStyle(.orange)
                             .padding(.top, 12)
 
-                        Text("CEK CEK Pro")
+                        Text("ÇEK ÇEK Pro")
                             .font(.largeTitle.bold())
 
                         Text("Geçici kameranızı tam kontrol altına alın")
@@ -165,8 +165,8 @@ struct ProPaywallSheet: View {
                     VStack(spacing: 14) {
                         featureRow(
                             icon: "timer",
-                            title: "3 Süre Butonunu Özelleştirin",
-                            subtitle: "Gün, saat ve dakika cinsinden istediğiniz 3 saklama süresini kendiniz belirleyin."
+                            title: "Süre Seçeneklerini Özelleştirin & Ekleyin",
+                            subtitle: "Gün, saat ve dakika cinsinden saklama sürelerini kendiniz belirleyin ve yeni süre seçenekleri ekleyin."
                         )
                         featureRow(
                             icon: "nosign",
@@ -183,7 +183,7 @@ struct ProPaywallSheet: View {
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
 
                     if monetization.isPro {
-                        Label("CEK CEK Pro Aktif", systemImage: "checkmark.seal.fill")
+                        Label("ÇEK ÇEK Pro Aktif", systemImage: "checkmark.seal.fill")
                             .font(.headline)
                             .foregroundStyle(.green)
                             .padding()

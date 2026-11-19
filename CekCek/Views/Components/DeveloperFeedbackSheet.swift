@@ -30,7 +30,7 @@ struct DeveloperFeedbackSheet: View {
         let device = UIDevice.current
         return """
         ---
-        Uygulama: CEK CEK \(appVersionText)
+        Uygulama: ÇEK ÇEK \(appVersionText)
         Cihaz: \(device.model) (\(device.systemName) \(device.systemVersion))
         """
     }
@@ -108,7 +108,7 @@ struct DeveloperFeedbackSheet: View {
                     }
                 }
             }
-            .alert("CEK CEK", isPresented: Binding(
+            .alert("ÇEK ÇEK", isPresented: Binding(
                 get: { alertMessage != nil },
                 set: { if !$0 { alertMessage = nil } }
             )) {
@@ -120,7 +120,7 @@ struct DeveloperFeedbackSheet: View {
     }
 
     private func sendViaMailApp() {
-        let subject = "[CEK CEK] \(category.rawValue)"
+        let subject = "[ÇEK ÇEK] \(category.rawValue)"
         var components = URLComponents()
         components.scheme = "mailto"
         components.path = developerEmail
@@ -145,7 +145,7 @@ struct DeveloperFeedbackSheet: View {
     }
 
     private func copyFeedbackToClipboard() {
-        UIPasteboard.general.string = "Alıcı: \(developerEmail)\nKonu: [CEK CEK] \(category.rawValue)\n\n\(fullEmailBody)"
+        UIPasteboard.general.string = "Alıcı: \(developerEmail)\nKonu: [ÇEK ÇEK] \(category.rawValue)\n\n\(fullEmailBody)"
         alertMessage = "Geri bildirim metni panoya kopyalandı."
     }
 }

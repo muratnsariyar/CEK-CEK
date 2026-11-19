@@ -20,6 +20,9 @@ struct MediaDetailView: View {
     @State private var alertMessage: String?
     @State private var isExporting = false
     @State private var dragOffsetY: CGFloat = 0
+    @State private var scanResult: ScanAnalysisResult = .empty
+    @State private var isScanningImage = false
+    @State private var showTextQRSheet = false
 
     private var backgroundOpacity: Double {
         let progress = min(1.0, Double(max(0, dragOffsetY)) / 260.0)
@@ -129,6 +132,35 @@ struct MediaDetailView: View {
                 VStack(spacing: 0) {
                     topBar
                     Spacer()
+
+                    if currentItem.mediaType == .photo && scanResult.hasAnyContent {
+                        HStack {
+                            Spacer()
+                            Button {
+                                showTextQRSheet = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: scanResult.hasQR ? "qrcode.viewfinder" : "text.viewfinder")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(.orange)
+                                    Text(scanResult.hasQR ? (scanResult.hasText ? "QR & Metin Kopyala" : "QR Kodu Kopyala") : "Metni Kopyala")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 9)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.orange.opacity(0.6), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                        .transition(.scale.combined(with: .opacity))
+                    }
+
                     bottomBar
                 }
                 .transition(.opacity)
@@ -136,6 +168,9 @@ struct MediaDetailView: View {
         }
         .preferredColorScheme(.dark)
         .statusBarHidden(isChromeHidden)
+        .task(id: currentItem.id) {
+            await analyzeCurrentPhotoForTextAndQR()
+        }
         .onDisappear {
             try? modelContext.save()
         }
@@ -143,13 +178,23 @@ struct MediaDetailView: View {
             MediaInspectorSheet(
                 item: currentItem,
                 folders: folders,
+                scanResult: scanResult,
                 onExtendTap: {
                     showInfoSheet = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                         showCustomDurationSheet = true
                     }
+                },
+                onOpenTextQRTap: {
+                    showInfoSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        showTextQRSheet = true
+                    }
                 }
             )
+        }
+        .sheet(isPresented: $showTextQRSheet) {
+            TextQRScannerSheet(result: scanResult, isScanning: isScanningImage)
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [MediaStorageService.shared.fileURL(for: currentItem.fileName)])
@@ -179,7 +224,7 @@ struct MediaDetailView: View {
             }
             Button("Vazgeç", role: .cancel) {}
         }
-        .alert("CEK CEK", isPresented: Binding(
+        .alert("ÇEK ÇEK", isPresented: Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )) {
@@ -369,6 +414,28 @@ struct MediaDetailView: View {
             }
         }
     }
+
+    private func analyzeCurrentPhotoForTextAndQR() async {
+        let target = currentItem
+        guard target.mediaType == .photo else {
+            scanResult = .empty
+            isScanningImage = false
+            return
+        }
+        isScanningImage = true
+        scanResult = .empty
+        guard let image = MediaStorageService.shared.loadImage(fileName: target.fileName) else {
+            isScanningImage = false
+            return
+        }
+        let result = await TextAndQRScannerService.analyze(image: image)
+        if currentItem.id == target.id {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                scanResult = result
+                isScanningImage = false
+            }
+        }
+    }
 }
 
 private struct MediaPageCanvas: View {
@@ -490,7 +557,9 @@ private struct MediaInspectorSheet: View {
 
     @Bindable var item: MediaItem
     let folders: [MediaFolder]
+    let scanResult: ScanAnalysisResult
     let onExtendTap: () -> Void
+    let onOpenTextQRTap: () -> Void
 
     @State private var pixelResolution: String?
 
@@ -583,13 +652,50 @@ private struct MediaInspectorSheet: View {
                     .padding(14)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
 
+                    // Metin & QR Algılama Kartı (Fotoğraflar için)
+                    if item.mediaType == .photo {
+                        Button {
+                            onOpenTextQRTap()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: scanResult.hasQR ? "qrcode.viewfinder" : "text.viewfinder")
+                                    .font(.title3)
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Metin ve QR Kod Algılama")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text(
+                                        scanResult.hasAnyContent
+                                            ? "\(scanResult.textLines.count) satır yazı, \(scanResult.qrItems.count) QR/barkod bulundu — Kopyalamak için dokunun"
+                                            : "Fotoğraftaki yazı veya QR kodları taramak için dokunun"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(14)
+                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     // iPhone Fotoğraflar EXIF / Dosya Ayrıntıları Kartı
                     VStack(spacing: 0) {
                         HStack {
                             HStack(spacing: 8) {
                                 Image(systemName: item.mediaType == .video ? "video.fill" : "camera.fill")
                                     .foregroundStyle(.secondary)
-                                Text("CEK CEK Kasa")
+                                Text("ÇEK ÇEK Kasa")
                                     .font(.subheadline.weight(.semibold))
                             }
                             Spacer()

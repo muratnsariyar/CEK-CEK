@@ -23,6 +23,7 @@ struct CameraTabView: View {
     @State private var baseZoomFactor: CGFloat = 1.0
     @State private var previewItem: MediaItem?
     @State private var editingSlot: EditingSlotItem?
+    @State private var hasCapturedInCurrentSession: Bool = false
 
     var onOpenGallery: () -> Void
 
@@ -71,21 +72,18 @@ struct CameraTabView: View {
             VStack(spacing: 0) {
                 topBar
 
-                if monetization.shouldShowAds {
+                // Reklam uygulama ilk açıldığında çıkmaz; yalnızca çekim yapıldıktan sonra veya Galeriye girildiğinde görünür
+                if monetization.shouldShowAds && hasCapturedInCurrentSession {
                     AdBannerView()
                         .padding(.top, 6)
                 } else if !monetization.isPro && monetization.remainingAdFreeUsages <= 10 {
-                    Text(
-                        monetization.remainingAdFreeUsages > 0
-                            ? "Reklamsız kalan hak: \(monetization.remainingAdFreeUsages) / \(MonetizationService.freeActiveLimit)"
-                            : "Son ücretsiz hak (50/50) • Silinince yenilenir"
-                    )
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(.black.opacity(0.55), in: Capsule())
-                    .padding(.top, 8)
+                    Text("\(monetization.remainingAdFreeUsages)/\(MonetizationService.freeActiveLimit)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.55), in: Capsule())
+                        .padding(.top, 8)
                 }
 
                 Spacer()
@@ -227,15 +225,15 @@ struct CameraTabView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 14) {
-            // 3 Adet Saklama Süresi Seçeneği (Son Seçim Otomatik Korunur)
-            HStack(spacing: 8) {
+            // Saklama Süresi Seçenekleri (Son Seçim Otomatik Korunur)
+            HStack(spacing: 6) {
                 Button {
                     openDurationWheel(for: retentionSettings.selectedSlotIndex)
                 } label: {
                     Image(systemName: "timer")
                         .font(.caption.bold())
                         .foregroundStyle(.orange)
-                        .padding(6)
+                        .frame(width: 30, height: 30)
                         .background(Color.white.opacity(0.12), in: Circle())
                 }
                 .disabled(camera.isRecording)
@@ -253,8 +251,10 @@ struct CameraTabView: View {
                     } label: {
                         Text(duration.shortLabel)
                             .font(.caption.bold())
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .foregroundStyle(isSelected ? .black : .white)
-                            .padding(.horizontal, 14)
+                            .padding(.horizontal, retentionSettings.activePresets.count > 3 ? 11 : 14)
                             .padding(.vertical, 7)
                             .background(
                                 isSelected ? Color.orange : Color.white.opacity(0.16),
@@ -264,6 +264,7 @@ struct CameraTabView: View {
                     .disabled(camera.isRecording)
                 }
             }
+            .padding(.horizontal, 12)
 
             // Fotoğraf / Video Modu
             if !camera.isCameraUnavailable {
@@ -395,7 +396,7 @@ struct CameraTabView: View {
                 .font(.title3.bold())
                 .foregroundStyle(.white)
 
-            Text("CEK CEK'in kişisel galerinize kaydetmeden çekim yapabilmesi için Ayarlar'dan kamera izni vermeniz gerekir.")
+            Text("ÇEK ÇEK'in kişisel galerinize kaydetmeden çekim yapabilmesi için Ayarlar'dan kamera izni vermeniz gerekir.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
                 .multilineTextAlignment(.center)
@@ -480,6 +481,7 @@ struct CameraTabView: View {
             modelContext.insert(item)
             try? modelContext.save()
             NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: notificationLeadHours)
+            hasCapturedInCurrentSession = true
             let activeCount = ExpirationService.activeMediaCount(in: modelContext)
             monetization.recordCapture(newActiveCount: activeCount)
             showBanner("Kasaya kaydedildi • \(duration.title)")
@@ -509,6 +511,7 @@ struct CameraTabView: View {
                     modelContext.insert(item)
                     try? modelContext.save()
                     NotificationService.shared.scheduleExpirationReminder(for: item, hoursBefore: leadHours)
+                    hasCapturedInCurrentSession = true
                     let activeCount = ExpirationService.activeMediaCount(in: modelContext)
                     monetization.recordCapture(newActiveCount: activeCount)
                     showBanner("Video kasaya kaydedildi • \(duration.title)")

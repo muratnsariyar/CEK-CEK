@@ -15,7 +15,7 @@ struct LockScreenOverlay: View {
                     .foregroundStyle(.orange)
 
                 VStack(spacing: 8) {
-                    Text("CEK CEK Kilitli")
+                    Text("ÇEK ÇEK Kilitli")
                         .font(.title2.bold())
 
                     Text("Geçici galerinize erişmek için \(lockService.biometricName) doğrulaması yapın.")

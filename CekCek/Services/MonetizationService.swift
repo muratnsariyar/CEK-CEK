@@ -4,7 +4,7 @@ import Foundation
 final class MonetizationService: ObservableObject {
     static let shared = MonetizationService()
     static let freeActiveLimit: Int = 50
-    private static let interstitialFrequency: Int = 5
+    private static let interstitialFrequency: Int = 4
 
     private enum Keys {
         static let isPro = "isCekCekProEnabled"
@@ -56,7 +56,7 @@ final class MonetizationService: ObservableObject {
         guard shouldShowAds else { return }
 
         capturesWhileOverLimit += 1
-        if capturesWhileOverLimit % Self.interstitialFrequency == 0 {
+        if capturesWhileOverLimit == 1 || capturesWhileOverLimit % Self.interstitialFrequency == 0 {
             showInterstitialAd = true
         }
     }

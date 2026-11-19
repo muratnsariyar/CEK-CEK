@@ -20,6 +20,7 @@ struct SettingsTabView: View {
     @State private var showPurgeAllConfirm = false
     @State private var infoMessage: String?
     @State private var editingSlot: SettingsEditingSlot?
+    @State private var showAddSlotSheet = false
     @State private var showFeedbackSheet = false
 
     private let leadHourOptions = [3, 6, 12, 24]
@@ -30,7 +31,7 @@ struct SettingsTabView: View {
                 Section("Üyelik & Reklamsız Kullanım") {
                     HStack {
                         Label(
-                            monetization.isPro ? "CEK CEK Pro" : "Ücretsiz Paket",
+                            monetization.isPro ? "ÇEK ÇEK Pro" : "Ücretsiz Paket",
                             systemImage: monetization.isPro ? "crown.fill" : "person.crop.circle"
                         )
                         .foregroundStyle(monetization.isPro ? .orange : .primary)
@@ -45,11 +46,11 @@ struct SettingsTabView: View {
                             Text("Reklamsız Kapasite")
                             Spacer()
                             if monetization.shouldShowAds {
-                                Text("50 sınırı aşıldı • Silinince yenilenir")
+                                Text("50/50 (Aşıldı)")
                                     .foregroundStyle(.red)
-                                    .font(.caption.bold())
+                                    .font(.subheadline.bold())
                             } else {
-                                Text("\(monetization.remainingAdFreeUsages) / \(MonetizationService.freeActiveLimit) boş hak")
+                                Text("\(monetization.remainingAdFreeUsages)/\(MonetizationService.freeActiveLimit)")
                                     .foregroundStyle(.orange)
                                     .fontWeight(.semibold)
                             }
@@ -58,7 +59,7 @@ struct SettingsTabView: View {
                         Button {
                             monetization.showProPaywall = true
                         } label: {
-                            Label("CEK CEK Pro'ya Geç", systemImage: "crown.fill")
+                            Label("ÇEK ÇEK Pro'ya Geç", systemImage: "crown.fill")
                                 .foregroundStyle(.orange)
                                 .fontWeight(.semibold)
                         }
@@ -66,24 +67,54 @@ struct SettingsTabView: View {
                 }
 
                 Section {
-                    durationSlotRow(index: 0, title: "1. Süre Seçeneği", value: retentionSettings.slot1.title)
-                    durationSlotRow(index: 1, title: "2. Süre Seçeneği", value: retentionSettings.slot2.title)
-                    durationSlotRow(index: 2, title: "3. Süre Seçeneği", value: retentionSettings.slot3.title)
+                    ForEach(Array(retentionSettings.slots.enumerated()), id: \.offset) { index, duration in
+                        durationSlotRow(
+                            index: index,
+                            title: "\(index + 1). Süre Seçeneği",
+                            value: duration.title
+                        )
+                    }
 
                     if monetization.isPro {
+                        if retentionSettings.canAddSlot {
+                            Button {
+                                showAddSlotSheet = true
+                            } label: {
+                                Label("Yeni Süre Seçeneği Ekle", systemImage: "plus.circle.fill")
+                                    .foregroundStyle(.orange)
+                                    .fontWeight(.medium)
+                            }
+                        }
+
                         Button("Süreleri Varsayılana Sıfırla") {
                             retentionSettings.resetToDefaults()
+                        }
+                    } else {
+                        Button {
+                            monetization.showProPaywall = true
+                        } label: {
+                            HStack {
+                                Label("Yeni Süre Seçeneği Ekle", systemImage: "plus.circle")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Text("PRO")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(Color.orange, in: Capsule())
+                            }
                         }
                     }
 
                     Toggle("Uygulama Kamerada Açılsın", isOn: $startOnCameraTab)
                 } header: {
-                    Text("Çekim & Saklama Süreleri (3 Seçenek)")
+                    Text("Çekim & Saklama Süreleri")
                 } footer: {
                     Text(
                         monetization.isPro
-                            ? "Herhangi bir süre seçeneğine dokunarak Gün / Saat / Dakika sayacıyla dilediğiniz süreyi belirleyebilirsiniz. En son seçtiğiniz süre otomatik olarak korunur."
-                            : "Kamera ekranında en son seçtiğiniz süre otomatik olarak korunur. 3 süre seçeneğini Gün / Saat / Dakika sayacıyla özelleştirmek CEK CEK Pro paketine dahildir."
+                            ? "Herhangi bir süre seçeneğine dokunarak Gün / Saat / Dakika sayacıyla dilediğiniz süreyi belirleyebilir veya yeni süre ekleyebilirsiniz. En son seçtiğiniz süre otomatik olarak korunur."
+                            : "Kamera ekranında en son seçtiğiniz süre otomatik olarak korunur. Süre seçeneklerini özelleştirmek ve yeni süre eklemek ÇEK ÇEK Pro paketine dahildir."
                     )
                 }
 
@@ -178,7 +209,7 @@ struct SettingsTabView: View {
                     HStack {
                         Text("Uygulama")
                         Spacer()
-                        Text("CEK CEK")
+                        Text("ÇEK ÇEK")
                             .foregroundStyle(.secondary)
                     }
                     HStack {
@@ -201,6 +232,14 @@ struct SettingsTabView: View {
                     retentionSettings.updateSlot(at: slot.id, to: newDuration)
                 }
             }
+            .sheet(isPresented: $showAddSlotSheet) {
+                DurationWheelPickerSheet(
+                    title: "Yeni Süre Seçeneği",
+                    initialDuration: .fourteenDays
+                ) { newDuration in
+                    retentionSettings.addSlot(newDuration)
+                }
+            }
             .sheet(isPresented: $showFeedbackSheet) {
                 DeveloperFeedbackSheet()
             }
@@ -215,7 +254,7 @@ struct SettingsTabView: View {
                 }
                 Button("Vazgeç", role: .cancel) {}
             }
-            .alert("CEK CEK", isPresented: Binding(
+            .alert("ÇEK ÇEK", isPresented: Binding(
                 get: { infoMessage != nil },
                 set: { if !$0 { infoMessage = nil } }
             )) {
@@ -227,33 +266,48 @@ struct SettingsTabView: View {
     }
 
     private func durationSlotRow(index: Int, title: String, value: String) -> some View {
-        Button {
-            if monetization.isPro {
-                editingSlot = SettingsEditingSlot(id: index)
-            } else {
-                monetization.showProPaywall = true
-            }
-        } label: {
-            HStack {
-                Text(title)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Text(value)
-                    .foregroundStyle(monetization.isPro ? .orange : .secondary)
-                    .fontWeight(monetization.isPro ? .semibold : .regular)
-
-                if !monetization.isPro {
-                    Text("PRO")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color.orange, in: Capsule())
+        HStack {
+            Button {
+                if monetization.isPro {
+                    editingSlot = SettingsEditingSlot(id: index)
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold())
-                        .foregroundStyle(.tertiary)
+                    monetization.showProPaywall = true
                 }
+            } label: {
+                HStack {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Text(value)
+                        .foregroundStyle(monetization.isPro ? .orange : .secondary)
+                        .fontWeight(monetization.isPro ? .semibold : .regular)
+
+                    if !monetization.isPro {
+                        Text("PRO")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.orange, in: Capsule())
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.bold())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            if monetization.isPro && retentionSettings.canRemoveSlot {
+                Button(role: .destructive) {
+                    withAnimation {
+                        retentionSettings.removeSlot(at: index)
+                    }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 6)
             }
         }
     }
@@ -285,7 +339,7 @@ struct SettingsTabView: View {
                     )
                 } else {
                     notificationsEnabled = false
-                    infoMessage = "Bildirim izni verilmedi. Ayarlar > CEK CEK üzerinden bildirimleri açabilirsiniz."
+                    infoMessage = "Bildirim izni verilmedi. Ayarlar > ÇEK ÇEK üzerinden bildirimleri açabilirsiniz."
                 }
             }
         }

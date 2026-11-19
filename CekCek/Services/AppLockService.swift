@@ -60,7 +60,7 @@ final class AppLockService: ObservableObject {
         }
 
         do {
-            let reason = "CEK CEK geçici galerinize erişmek için kimliğinizi doğrulayın."
+            let reason = "ÇEK ÇEK geçici galerinize erişmek için kimliğinizi doğrulayın."
             let success = try await context.evaluatePolicy(policy, localizedReason: reason)
             if success {
                 isLocked = false

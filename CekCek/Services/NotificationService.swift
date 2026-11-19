@@ -43,7 +43,7 @@ final class NotificationService: ObservableObject {
         guard fireDate > Date().addingTimeInterval(60) else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "CEK CEK — Süre Dolmak Üzere"
+        content.title = "ÇEK ÇEK — Süre Dolmak Üzere"
         let folderLabel = item.folder?.name ?? "Genel"
         content.body = "\"\(folderLabel)\" klasöründeki bir \(item.mediaType.displayName.lowercased()) \(hoursBefore) saat içinde otomatik silinecek."
         content.sound = .default

@@ -55,6 +55,7 @@ struct RetentionDuration: Codable, Equatable, Hashable, Identifiable {
     static let oneDay = RetentionDuration(days: 1, hours: 0, minutes: 0)
     static let threeDays = RetentionDuration(days: 3, hours: 0, minutes: 0)
     static let sevenDays = RetentionDuration(days: 7, hours: 0, minutes: 0)
+    static let fourteenDays = RetentionDuration(days: 14, hours: 0, minutes: 0)
     static let thirtyDays = RetentionDuration(days: 30, hours: 0, minutes: 0)
 
     static func fromDays(_ days: Int) -> RetentionDuration {
@@ -68,7 +69,11 @@ typealias RetentionPreset = RetentionDuration
 final class RetentionSettingsManager: ObservableObject {
     static let shared = RetentionSettingsManager()
 
+    static let minSlotCount = 3
+    static let maxSlotCount = 5
+
     private enum Keys {
+        static let slots = "retentionDurationSlotsList"
         static let slot1 = "retentionDurationSlot1"
         static let slot2 = "retentionDurationSlot2"
         static let slot3 = "retentionDurationSlot3"
@@ -77,37 +82,21 @@ final class RetentionSettingsManager: ObservableObject {
         static let defaultsVersion = "retentionDefaultsVersion"
     }
 
-    private static let currentDefaultsVersion = 2
+    private static let currentDefaultsVersion = 3
 
-    @Published var slot1: RetentionDuration {
+    @Published var slots: [RetentionDuration] {
         didSet {
-            let safe = slot1.clamped
-            if safe != slot1 { slot1 = safe; return }
-            Self.saveDuration(safe, forKey: Keys.slot1)
-            if selectedSlotIndex == 0 {
-                lastUsedDuration = safe
+            let sanitized = slots.map(\.clamped)
+            if sanitized != slots {
+                slots = sanitized
+                return
             }
-        }
-    }
-
-    @Published var slot2: RetentionDuration {
-        didSet {
-            let safe = slot2.clamped
-            if safe != slot2 { slot2 = safe; return }
-            Self.saveDuration(safe, forKey: Keys.slot2)
-            if selectedSlotIndex == 1 {
-                lastUsedDuration = safe
+            Self.saveSlots(sanitized)
+            if selectedSlotIndex >= sanitized.count {
+                selectedSlotIndex = max(0, sanitized.count - 1)
             }
-        }
-    }
-
-    @Published var slot3: RetentionDuration {
-        didSet {
-            let safe = slot3.clamped
-            if safe != slot3 { slot3 = safe; return }
-            Self.saveDuration(safe, forKey: Keys.slot3)
-            if selectedSlotIndex == 2 {
-                lastUsedDuration = safe
+            if sanitized.indices.contains(selectedSlotIndex) {
+                lastUsedDuration = sanitized[selectedSlotIndex]
             }
         }
     }
@@ -122,7 +111,8 @@ final class RetentionSettingsManager: ObservableObject {
 
     @Published var selectedSlotIndex: Int {
         didSet {
-            let clamped = max(0, min(2, selectedSlotIndex))
+            let maxIdx = max(0, slots.count - 1)
+            let clamped = max(0, min(maxIdx, selectedSlotIndex))
             if clamped != selectedSlotIndex { selectedSlotIndex = clamped; return }
             UserDefaults.standard.set(clamped, forKey: Keys.selectedSlotIndex)
         }
@@ -133,90 +123,109 @@ final class RetentionSettingsManager: ObservableObject {
         let savedVersion = defaults.integer(forKey: Keys.defaultsVersion)
         let isPro = defaults.bool(forKey: "isCekCekProEnabled")
 
-        let s1: RetentionDuration
-        let s2: RetentionDuration
-        let s3: RetentionDuration
-        let clampedIndex: Int
-        let loadedLastUsed: RetentionDuration
-
-        if savedVersion < Self.currentDefaultsVersion && !isPro {
-            s1 = .oneDay
-            s2 = .sevenDays
-            s3 = .thirtyDays
-            clampedIndex = 1
-            loadedLastUsed = .sevenDays
-            Self.saveDuration(s1, forKey: Keys.slot1)
-            Self.saveDuration(s2, forKey: Keys.slot2)
-            Self.saveDuration(s3, forKey: Keys.slot3)
-            Self.saveDuration(loadedLastUsed, forKey: Keys.lastUsed)
-            defaults.set(clampedIndex, forKey: Keys.selectedSlotIndex)
-            defaults.set(Self.currentDefaultsVersion, forKey: Keys.defaultsVersion)
+        var initialSlots: [RetentionDuration]
+        if let storedList = Self.loadSlots(), storedList.count >= Self.minSlotCount {
+            initialSlots = Array(storedList.prefix(Self.maxSlotCount))
         } else {
-            s1 = Self.loadDuration(forKey: Keys.slot1) ?? .oneDay
-            s2 = Self.loadDuration(forKey: Keys.slot2) ?? .sevenDays
-            s3 = Self.loadDuration(forKey: Keys.slot3) ?? .thirtyDays
-            let storedIndex = defaults.object(forKey: Keys.selectedSlotIndex) as? Int ?? 1
-            clampedIndex = max(0, min(2, storedIndex))
-            let active = [s1, s2, s3]
-            loadedLastUsed = Self.loadDuration(forKey: Keys.lastUsed) ?? active[clampedIndex]
-            if savedVersion < Self.currentDefaultsVersion {
-                defaults.set(Self.currentDefaultsVersion, forKey: Keys.defaultsVersion)
-            }
+            let s1 = Self.loadDuration(forKey: Keys.slot1) ?? .oneDay
+            let s2 = Self.loadDuration(forKey: Keys.slot2) ?? .sevenDays
+            let s3 = Self.loadDuration(forKey: Keys.slot3) ?? .thirtyDays
+            initialSlots = [s1, s2, s3]
         }
 
-        self.slot1 = s1
-        self.slot2 = s2
-        self.slot3 = s3
+        if savedVersion < 2 && !isPro {
+            initialSlots = [.oneDay, .sevenDays, .thirtyDays]
+        }
+
+        let storedIndex = defaults.object(forKey: Keys.selectedSlotIndex) as? Int ?? 1
+        let clampedIndex = max(0, min(initialSlots.count - 1, storedIndex))
+        let loadedLastUsed = Self.loadDuration(forKey: Keys.lastUsed) ?? initialSlots[clampedIndex]
+
+        self.slots = initialSlots
         self.selectedSlotIndex = clampedIndex
         self.lastUsedDuration = loadedLastUsed.clamped
+
+        Self.saveSlots(initialSlots)
+        defaults.set(Self.currentDefaultsVersion, forKey: Keys.defaultsVersion)
     }
 
     var activePresets: [RetentionDuration] {
-        [slot1, slot2, slot3]
+        slots
     }
 
     var uniqueActivePresets: [RetentionDuration] {
         var result: [RetentionDuration] = []
-        for preset in activePresets where !result.contains(preset) {
+        for preset in slots where !result.contains(preset) {
             result.append(preset)
         }
         return result
     }
 
+    var canAddSlot: Bool {
+        slots.count < Self.maxSlotCount
+    }
+
+    var canRemoveSlot: Bool {
+        slots.count > Self.minSlotCount
+    }
+
     func slot(at index: Int) -> RetentionDuration {
-        switch index {
-        case 0: return slot1
-        case 1: return slot2
-        case 2: return slot3
-        default: return slot2
+        guard slots.indices.contains(index) else {
+            return slots.first ?? .sevenDays
         }
+        return slots[index]
     }
 
     func selectSlot(index: Int) {
-        let clamped = max(0, min(2, index))
-        selectedSlotIndex = clamped
-        lastUsedDuration = activePresets[clamped]
+        guard slots.indices.contains(index) else { return }
+        selectedSlotIndex = index
+        lastUsedDuration = slots[index]
     }
 
     func updateSlot(at index: Int, to duration: RetentionDuration) {
+        guard slots.indices.contains(index) else { return }
         let safe = duration.clamped
-        switch index {
-        case 0: slot1 = safe
-        case 1: slot2 = safe
-        case 2: slot3 = safe
-        default: break
-        }
+        slots[index] = safe
         if selectedSlotIndex == index {
             lastUsedDuration = safe
         }
     }
 
+    func addSlot(_ duration: RetentionDuration) {
+        guard canAddSlot else { return }
+        let safe = duration.clamped
+        slots.append(safe)
+        selectedSlotIndex = slots.count - 1
+        lastUsedDuration = safe
+    }
+
+    func removeSlot(at index: Int) {
+        guard canRemoveSlot, slots.indices.contains(index) else { return }
+        slots.remove(at: index)
+        if selectedSlotIndex >= slots.count {
+            selectedSlotIndex = max(0, slots.count - 1)
+        }
+        lastUsedDuration = slots[selectedSlotIndex]
+    }
+
     func resetToDefaults() {
-        slot1 = .oneDay
-        slot2 = .sevenDays
-        slot3 = .thirtyDays
+        slots = [.oneDay, .sevenDays, .thirtyDays]
         selectedSlotIndex = 1
         lastUsedDuration = .sevenDays
+    }
+
+    private static func saveSlots(_ list: [RetentionDuration]) {
+        if let data = try? JSONEncoder().encode(list) {
+            UserDefaults.standard.set(data, forKey: Keys.slots)
+        }
+    }
+
+    private static func loadSlots() -> [RetentionDuration]? {
+        guard let data = UserDefaults.standard.data(forKey: Keys.slots),
+              let decoded = try? JSONDecoder().decode([RetentionDuration].self, from: data) else {
+            return nil
+        }
+        return decoded.map(\.clamped)
     }
 
     private static func saveDuration(_ duration: RetentionDuration, forKey key: String) {
