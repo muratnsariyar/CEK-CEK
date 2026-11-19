@@ -6,81 +6,99 @@ struct BrandSqueegeeBadge: View {
 
     var body: some View {
         ZStack {
-            // Üst yarı (Fotoğraf alanı) ve Alt yarı (Çöp alanı) ikiye bölünmüş kapak
-            VStack(spacing: 0) {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.08, green: 0.22, blue: 0.42),
-                        Color(red: 0.14, green: 0.36, blue: 0.62)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.09, green: 0.11, blue: 0.20),
-                        Color(red: 0.04, green: 0.06, blue: 0.12)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
-            .shadow(color: .orange.opacity(0.28), radius: 10, y: 4)
-
-            // Üst yarı: Fotoğraf görseli + su damlaları
-            Image(systemName: "drop.fill")
-                .font(.system(size: size * 0.11))
-                .foregroundStyle(.cyan.opacity(0.9))
-                .offset(x: -size * 0.28, y: -size * 0.23)
-
-            Image(systemName: "drop.fill")
-                .font(.system(size: size * 0.09))
-                .foregroundStyle(.cyan.opacity(0.85))
-                .offset(x: size * 0.28, y: -size * 0.21)
-
-            Image(systemName: "photo.fill")
-                .font(.system(size: size * 0.27, weight: .bold))
-                .foregroundStyle(.white)
-                .offset(y: -size * 0.23)
-
-            // Alt yarı: Çöp kutusu görseli
-            Image(systemName: "trash.fill")
-                .font(.system(size: size * 0.25, weight: .bold))
-                .foregroundStyle(
+            // Mat antrasit / derin gece laciverti arka plan (Konsept 1)
+            RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+                .fill(
                     LinearGradient(
-                        colors: [.orange, Color(red: 0.92, green: 0.26, blue: 0.18)],
-                        startPoint: .top,
-                        endPoint: .bottom
+                        colors: [
+                            Color(red: 0.06, green: 0.08, blue: 0.13),
+                            Color(red: 0.11, green: 0.15, blue: 0.22),
+                            Color(red: 0.05, green: 0.07, blue: 0.11)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
                 )
-                .offset(y: size * 0.24)
+                .frame(width: size, height: size)
+                .shadow(color: .orange.opacity(0.28), radius: 10, y: 4)
 
-            // Tam ortadan kapağı ikiye ayıran Çekçek (Squeegee)
+            // Kamera gövdesi silüeti
+            RoundedRectangle(cornerRadius: size * 0.11, style: .continuous)
+                .fill(Color(red: 0.14, green: 0.18, blue: 0.26))
+                .overlay(
+                    RoundedRectangle(cornerRadius: size * 0.11, style: .continuous)
+                        .stroke(Color.white.opacity(0.22), lineWidth: max(1, size * 0.012))
+                )
+                .frame(width: size * 0.72, height: size * 0.52)
+                .offset(y: -size * 0.02)
+
+            // Merkezde büyük optik kamera lensi
             ZStack {
+                Circle()
+                    .stroke(Color.orange, lineWidth: max(2, size * 0.032))
+                    .frame(width: size * 0.43, height: size * 0.43)
+
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 0.08, green: 0.32, blue: 0.54),
+                                Color(red: 0.02, green: 0.06, blue: 0.14)
+                            ],
+                            center: .topLeading,
+                            startRadius: 2,
+                            endRadius: size * 0.22
+                        )
+                    )
+                    .frame(width: size * 0.36, height: size * 0.36)
+
+                // Lens ışık yansıması
+                Ellipse()
+                    .fill(Color.cyan.opacity(0.55))
+                    .frame(width: size * 0.09, height: size * 0.055)
+                    .offset(x: -size * 0.06, y: -size * 0.06)
+            }
+            .offset(y: -size * 0.02)
+
+            // Lensin üzerinden çapraz geçen Çekçek (Squeegee)
+            ZStack {
+                // Çekçek sapı
+                RoundedRectangle(cornerRadius: size * 0.04)
+                    .fill(Color(red: 0.20, green: 0.26, blue: 0.36))
+                    .frame(width: size * 0.08, height: size * 0.24)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: size * 0.02)
+                            .fill(Color.orange)
+                            .frame(width: size * 0.036, height: size * 0.12)
+                            .offset(y: size * 0.03)
+                    )
+                    .offset(y: size * 0.13)
+
+                // Çekçek bıçağı (üstte camgöbeği silikon, altta turuncu gövde)
                 VStack(spacing: 0) {
                     RoundedRectangle(cornerRadius: max(1.5, size * 0.02))
                         .fill(Color.cyan)
-                        .frame(width: size * 0.86, height: max(2.5, size * 0.04))
+                        .frame(width: size * 0.80, height: max(2.5, size * 0.035))
 
-                    RoundedRectangle(cornerRadius: max(2, size * 0.03))
+                    RoundedRectangle(cornerRadius: max(2, size * 0.028))
                         .fill(
                             LinearGradient(
-                                colors: [.orange, Color(red: 0.95, green: 0.45, blue: 0.0)],
+                                colors: [.orange, Color(red: 0.92, green: 0.40, blue: 0.0)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: size * 0.90, height: max(3.5, size * 0.055))
+                        .frame(width: size * 0.84, height: max(3.5, size * 0.052))
                 }
 
-                RoundedRectangle(cornerRadius: max(2, size * 0.025))
-                    .fill(Color.white.opacity(0.95))
-                    .frame(width: size * 0.16, height: max(4, size * 0.065))
-                    .offset(y: size * 0.015)
+                // Merkez bağlantı kelepçesi
+                RoundedRectangle(cornerRadius: max(2, size * 0.024))
+                    .fill(Color.white.opacity(0.92))
+                    .frame(width: size * 0.15, height: max(4, size * 0.062))
+                    .offset(y: size * 0.012)
             }
+            .rotationEffect(.degrees(-11))
+            .offset(y: size * 0.11)
         }
     }
 }
