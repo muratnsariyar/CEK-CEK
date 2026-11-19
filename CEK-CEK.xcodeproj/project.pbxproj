@@ -95,6 +95,8 @@
 				TargetAttributes = {
 					CC0000050000000000000001 = {
 						CreatedOnToolsVersion = 16.0;
+						DevelopmentTeam = 6CTRG24HNK;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -266,6 +268,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 6CTRG24HNK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CekCek/Info.plist;
@@ -291,6 +294,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 6CTRG24HNK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CekCek/Info.plist;
